@@ -104,6 +104,7 @@ class ContactRegistrationController(http.Controller):
                 'quantity': 1,
                 'price_unit': amount,
             })],
+            'is_from_api': True,
         })
         
         # Post the credit note to make it effective

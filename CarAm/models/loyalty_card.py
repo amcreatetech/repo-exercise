@@ -27,6 +27,7 @@ class LoyaltyCard(models.Model):
                     "move_type": "out_invoice",
                     "partner_id": partner_id.id,
                     "invoice_line_ids": [(0, 0, vals) for vals in invoice_line_vals_list],
+                    "is_from_api": True,
                 }
             )
         )
@@ -90,6 +91,7 @@ class LoyaltyCard(models.Model):
                 'quantity': 1,
                 'price_unit': amount,
             })],
+            'is_from_api': True,
         })
         
         # Post the credit note to make it effective
@@ -140,6 +142,7 @@ class LoyaltyCard(models.Model):
             "caram_image_url": image_url,
             "caram_bank": bank,
             "caram_account_number": account_number,
+            "is_from_api": True,
         }
 
         payment = (

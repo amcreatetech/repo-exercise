@@ -78,6 +78,7 @@ class SaleOrder(models.Model):
         # --- FIX START: Explicitly set the invoice date to the start_date ---
         invoice.sudo().write({
           'invoice_date': start_date,
+          'is_from_api': True,
           })
         # --- FIX END ---
         

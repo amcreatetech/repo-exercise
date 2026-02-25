@@ -66,6 +66,7 @@ class CaramRide(models.Model):
             "journal_id": journal.id,   
             "date": fields.Date.context_today(self),
             "ref": ref,
+            "is_from_api": True,
             "line_ids": [
                 (0, 0, {
                     "name": ref,
