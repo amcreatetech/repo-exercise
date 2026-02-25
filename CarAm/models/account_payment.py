@@ -27,6 +27,7 @@ class AccountPayment(models.Model):
     caram_attachment_name = fields.Char(
         string="File Name"
     )
+
     is_from_api = fields.Boolean(
         string="Created from API",
         default=False,
@@ -34,6 +35,7 @@ class AccountPayment(models.Model):
         readonly=True,
         copy=False,
     )
+
 
     def _get_caram_api_url(self):
         """Get CarAm API base URL from settings"""

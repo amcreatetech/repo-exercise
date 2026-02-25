@@ -92,7 +92,7 @@ class LoyaltyCard(models.Model):
                 'price_unit': amount,
             })],
             'is_from_api': True,
-        })
+            })
         
         # Post the credit note to make it effective
         credit_note.action_post()
@@ -143,7 +143,7 @@ class LoyaltyCard(models.Model):
             "caram_bank": bank,
             "caram_account_number": account_number,
             "is_from_api": True,
-        }
+            }
 
         payment = (
             self.env["account.payment"]
