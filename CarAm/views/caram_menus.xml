@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem
+        id="menu_caram_root"
+        name="CarAm"
+        sequence="10"
+        groups="base.group_user"
+    />
+
+    <menuitem
+        id="menu_caram_rides"
+        name="Rides"
+        parent="menu_caram_root"
+        action="action_caram_ride"
+        sequence="10"
+        groups="base.group_user"
+    />
+
+</odoo>
+
+

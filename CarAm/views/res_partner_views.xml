@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Inherit res.partner form view to add CarAm fields -->
+    <record id="view_partner_form_caram" model="ir.ui.view">
+        <field name="name">res.partner.form.caram</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="after">
+                <field name="sub_id" placeholder="e.g., 12354"/>
+                <field name="gender"/>
+                <field name="contact_type"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add filters for contact type in search view -->
+    <record id="view_partner_search_caram" model="ir.ui.view">
+        <field name="name">res.partner.search.caram</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <filter name="customer" position="after">
+                <separator/>
+                <filter string="Drivers" name="drivers" domain="[('contact_type', '=', 'driver')]"/>
+                <filter string="Riders" name="riders" domain="[('contact_type', '=', 'rider')]"/>
+                <separator/>
+                <filter string="Male" name="male" domain="[('gender', '=', 'male')]"/>
+                <filter string="Female" name="female" domain="[('gender', '=', 'female')]"/>
+            </filter>
+            <field name="name" position="after">
+                <field name="sub_id" string="Platform ID"/>
+            </field>
+            <group position="inside">
+                <filter string="Contact Type" name="group_by_contact_type" 
+                        context="{'group_by': 'contact_type'}"/>
+                <filter string="Gender" name="group_by_gender" 
+                        context="{'group_by': 'gender'}"/>
+            </group>
+        </field>
+    </record>
+
+
+    <record id="view_partner_tree_caram" model="ir.ui.view">
+        <field name="name">res.partner.tree.caram</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="after">
+                <field name="sub_id" optional="show"/>
+                <field name="contact_type" optional="show"/>
+                <field name="gender" optional="hide"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>
+

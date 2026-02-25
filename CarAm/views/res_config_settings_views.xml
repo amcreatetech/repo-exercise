@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_caram" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.caram</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='account']/block" position="inside">
+                <block title="CarAm Account Settings" name="caram_account_settings">
+                    <setting id="caram_account_settings" string="CarAm Account Settings" 
+                             help="Configure accounts for CarAm transactions">
+                        <div class="content-group">
+                            <div class="row mt16">
+                                <label string="Bank Account" for="caram_bank_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_bank_account_id" class="o_light_label" 
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="Bouns Account" for="caram_bouns_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_bouns_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            <div class="row mt16">
+                                <label string="Rider Wallets Account" for="caram_rider_wallets_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_rider_wallets_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="Driver Wallet Account" for="caram_driver_wallet_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_driver_wallet_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="Mobile Payment Services Account" for="caram_mobile_payment_services_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_mobile_payment_services_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="Point Expense Account" for="caram_point_expense_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_point_expense_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="Fine revenue Account" for="caram_fine_revenue_account_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_fine_revenue_account_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+
+                            <div class="row mt16">
+                                <label string="Fine Product" for="caram_fine_product_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_fine_product_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+
+                            <div class="row mt16">
+                                <label string="CarAm Wallet Journal" for="caram_wallet_journal_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_wallet_journal_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+
+                            <div class="row mt16">
+                                <label string="Commission Product" for="caram_commission_product_id"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_commission_product_id" class="o_light_label"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt16">
+                                <label string="CarAm API Base URL" for="caram_api_base_url"
+                                       class="col-lg-3 o_light_label"/>
+                                <div class="col-lg-12">
+                                    <field name="caram_api_base_url" class="o_light_label"
+                                           placeholder="https://staging.caram.app"/>
+                                </div>
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

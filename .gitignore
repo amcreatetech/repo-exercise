@@ -1,0 +1,15 @@
+# Odoo
+*.pyc
+__pycache__/
+*.log
+*.swp
+.env
+venv/
+.odoo/
+.idea/
+.vscode/
+
+# Odoo runtime
+filestore/
+sessions/
+addons_backup/

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_payment_form_inherit_caram" model="ir.ui.view">
+        <field name="name">account.payment.form.inherit.caram</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook name="caram_notebook">
+                    <page string="CarAm" name="caram">
+                        <group>
+                            <group string="Transaction">
+                                <field name="caram_transaction_id"/>
+                                <field name="caram_status_synced"/>
+                            </group>
+                            <group string="Bank Details">
+                                <field name="caram_bank" invisible="not caram_bank"/>
+                                <field name="caram_account_number"/>
+                                <field name="caram_image_url" widget="url"/>
+                            </group>
+                        </group>
+
+                        <group string="Attachments">
+                            <field name="caram_attachment" filename="caram_attachment_name"/>
+                        </group>
+
+                        <group>
+                            <field name="caram_decline_reason" colspan="4"/>
+                        </group>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+</odoo>
