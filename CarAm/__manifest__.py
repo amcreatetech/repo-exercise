@@ -34,6 +34,7 @@
         'views/product_template_views.xml',
         'views/caram_ride_views.xml',
         'views/caram_menus.xml',
+        'wizards/loyality_history_wizard_views.xml',
     ],
     'installable': True,
     'application': True,
