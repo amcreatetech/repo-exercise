@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
-
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
+import logging
+log = logging.getLogger(__name__)
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -29,6 +30,66 @@ class ResPartner(models.Model):
         ('commission', 'Commission'),
         ('subscription', 'Subscription'),
     ], string='Billing Type')
+    
+    wallet_balance = fields.Float(
+        digits='Product Price',
+        copy=False,
+        help='Last wallet balance fetched from the CarAm platform API.',
+    )
+
+    def _get_caram_wallet_api_url(self):
+        self.ensure_one()
+        base_url = self.env['ir.config_parameter'].sudo().get_param(
+            'caram.api.base.url',
+            'https://staging.caram.app',
+        ).rstrip('/')
+        if self.contact_type == 'rider':
+            return f'{base_url}/api/odoo/users/rider/{self.id}'
+        return f'{base_url}/api/odoo/users/driver'
+
+    def _get_caram_api_headers(self):
+        """Same as account.payment: Bearer token from caram.api.token when set."""
+        headers = {'Accept': 'application/json'}
+        token = self.env['ir.config_parameter'].sudo().get_param('caram.api.token')
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        return headers
+
+    def _send_caram_wallet_balance_update(self):
+        api_url = self._get_caram_wallet_api_url()
+        try:
+            response = requests.get(
+                api_url, timeout=10, headers=self._get_caram_api_headers()
+            )
+            response.raise_for_status()
+            rows = response.json().get('data') or []
+            log.info(f"List Of Rows: {rows}")
+            if not isinstance(rows, list):
+                raise UserError('Invalid API response from CarAm.')
+
+            row = next((r for r in rows if r.get('partner_id') == self.id), None)
+            if row is None and self.contact_type == 'rider' and len(rows) == 1:
+                row = rows[0]
+
+            if not row or row.get('wallet_balance') is None:
+                raise UserError('Wallet balance not found in CarAm response.')
+            log.info(f"Wallet balance: {row['wallet_balance']}")
+            self.write({'wallet_balance': float(row['wallet_balance'])})
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Success',
+                    'message': f"Balance updated successfully: {row['wallet_balance']}",
+                    'type': 'success',
+                    'sticky': False,
+                },
+            }
+        except requests.exceptions.HTTPError as e:
+            raise UserError(f'Failed to fetch wallet balance from CarAm: {str(e)}')
+
+    def action_caram_get_wallet_balance(self):
+        return self._send_caram_wallet_balance_update()
 
     def _caram_apply_accounting_partner_accounts(self):
         """Set company-dependent AR/AP from CarAm settings when role is rider or driver."""

@@ -7,10 +7,20 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <button name="action_caram_get_wallet_balance"
+                        type="object"
+                        string="Get Balance"
+                        class="btn-primary"
+                        invisible="not contact_type"/>
+                </header>
+            </xpath>
             <field name="vat" position="after">
                 <field name="sub_id" placeholder="e.g., 12354"/>
                 <field name="gender"/>
                 <field name="contact_type"/>
+                <field name="wallet_balance" readonly="1"/>
             </field>
         </field>
     </record>
@@ -56,4 +66,3 @@
     </record>
 
 </odoo>
-
