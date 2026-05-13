@@ -19,3 +19,5 @@ class LoyaltyHistory(models.Model):
         string='Account Number',
         help='Customer bank account number'
     )
+    transaction_date = fields.Datetime(
+        string='Transaction Date')

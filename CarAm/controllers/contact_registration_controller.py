@@ -1467,6 +1467,7 @@ class ContactRegistrationController(http.Controller):
                 "status": "posted",
                 "order_model": "account.move",
                 "order_id": move.id,
+                "transaction_date": accounting_date or fields.Datetime.now(),
             }
                     tx = env["loyalty.history"].sudo().create(tx_vals)
 
