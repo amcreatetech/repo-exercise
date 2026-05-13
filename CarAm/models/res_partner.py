@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
+import requests
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
-import requests
 import logging
 log = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ class ResPartner(models.Model):
         ('commission', 'Commission'),
         ('subscription', 'Subscription'),
     ], string='Billing Type')
-    
+
     wallet_balance = fields.Float(
         digits='Product Price',
         copy=False,
@@ -46,7 +45,7 @@ class ResPartner(models.Model):
         ).rstrip('/')
         if self.contact_type == 'rider':
             return f'{base_url}/api/odoo/users/rider/{self.id}'
-        return f'{base_url}/api/odoo/users/driver'
+        return f'{base_url}/api/odoo/users/driver/{self.id}'
 
     def _get_caram_api_headers(self):
         """Same as account.payment: Bearer token from caram.api.token when set."""
@@ -68,10 +67,7 @@ class ResPartner(models.Model):
             if not isinstance(rows, list):
                 raise UserError('Invalid API response from CarAm.')
 
-            row = next((r for r in rows if r.get('partner_id') == self.id), None)
-            if row is None and self.contact_type == 'rider' and len(rows) == 1:
-                row = rows[0]
-
+            row = rows[0] if rows else None
             if not row or row.get('wallet_balance') is None:
                 raise UserError('Wallet balance not found in CarAm response.')
             log.info(f"Wallet balance: {row['wallet_balance']}")

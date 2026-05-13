@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
-from odoo import http
-from odoo import models, fields, api  # Add this line at the top
+from odoo import fields, http, _
 from odoo.http import request
 from odoo.exceptions import UserError
 import json
@@ -72,7 +69,18 @@ class ContactRegistrationController(http.Controller):
         return bank_account, liability_account, None
 
 
-    def create_driver_coupon_credit_note(self, env, company_id, partner, amount, description, product=None):
+    def create_driver_coupon_credit_note(
+        self,
+        env,
+        company_id,
+        partner,
+        amount,
+        description,
+        product=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
+    ):
         """Create & post a customer credit note.
 
         If a product is provided, it will be used directly (e.g. compensation product);
@@ -100,10 +108,12 @@ class ContactRegistrationController(http.Controller):
         if not expense_account:
             return False
 
+        doc_date = accounting_date or fields.Date.context_today(env.user)
         credit_note = env['account.move'].sudo().with_company(company_id).create({
             'partner_id': partner.id,
             'move_type': 'out_refund',
-            'invoice_date': fields.Date.today(),
+            'invoice_date': doc_date,
+            'date': doc_date,
             'invoice_line_ids': [(0, 0, {
                 'product_id': product_coupon.id,
                 'account_id': expense_account.id,
@@ -112,6 +122,8 @@ class ContactRegistrationController(http.Controller):
                 'price_unit': amount,
             })],
             'is_from_api': True,
+            'note_from_api': note_from_api or False,
+            'api_payload': api_payload or False,
         })
         
         # Post the credit note to make it effective
@@ -136,6 +148,9 @@ class ContactRegistrationController(http.Controller):
             contact_type = payload.get("contact_type")
             coupon_value = float(payload.get("coupon_value", 0.0))
             billing_type = payload.get("billing_type") # subscription,commission
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload or False
 
             # -------------------- Required Fields --------------------
             if not sub_id:
@@ -200,7 +215,16 @@ class ContactRegistrationController(http.Controller):
             description = "Welcome Coupon - Service Credit"
 
             if coupon_value > 0:
-                credit_note = self.create_driver_coupon_credit_note(env, company_id, partner, coupon_value, description)
+                credit_note = self.create_driver_coupon_credit_note(
+                    env,
+                    company_id,
+                    partner,
+                    coupon_value,
+                    description,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
+                )
                 if credit_note:
                     # -------------------- Create Loyalty History --------------------
                     env["loyalty.history"].sudo().create({
@@ -571,6 +595,9 @@ class ContactRegistrationController(http.Controller):
             image_url = payload.get("image_url") or payload.get("Image_url")
             note = payload.get("note")
             account_number = payload.get("account_number")
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
 
             # -------------------- Validate required fields --------------------
             if not odoo_partner_id:
@@ -615,7 +642,15 @@ class ContactRegistrationController(http.Controller):
                 state = 'posted' if should_post else 'draft'
               
                 if payment_method_type == 'points':
-                    move_credit = wallet.create_points_credit_note(env, company_id, partner, amount)
+                    move_credit = wallet.create_points_credit_note(
+                        env,
+                        company_id,
+                        partner,
+                        amount,
+                        accounting_date=accounting_date,
+                        note_from_api=note_from_api,
+                        api_payload=api_payload,
+                    )
                     
                 elif payment_method_type == 'salesperson':
                     salesperson = env['res.partner'].sudo().browse(salesperson_id)
@@ -633,7 +668,7 @@ class ContactRegistrationController(http.Controller):
                         )
 
                     journal = env['account.journal'].sudo().with_company(company_id).search(
-                        [('company_id', '=', company_id), ("wallet_type_id", "=", payment_method_type)],
+                        [("wallet_type_id", "=", payment_method_type), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
                         limit=1,
                     )
 
@@ -646,9 +681,11 @@ class ContactRegistrationController(http.Controller):
                     move_vals = {
                         'move_type': 'entry',
                         'journal_id': journal.id,
-                        'date': fields.Date.today(),
+                        'date': accounting_date,
                         'ref': f'Wallet top-up via Salesperson {salesperson.display_name}',
                         'is_from_api': True,
+                        'note_from_api': note_from_api or False,
+                        'api_payload': api_payload or False,
                         'line_ids': [
                             (0, 0, {
                                 'name': ref or 'Wallet top-up via Salesperson',
@@ -682,6 +719,9 @@ class ContactRegistrationController(http.Controller):
                         image_url=image_url,
                         bank=bank,
                         account_number=account_number,
+                        accounting_date=accounting_date,
+                        note_from_api=note_from_api,
+                        api_payload=api_payload,
                     )
                     if move:
                         journal_transaction_id = move.caram_transaction_id
@@ -771,7 +811,10 @@ class ContactRegistrationController(http.Controller):
             bank = payload.get("bank")
             account_number = payload.get("account_number")
             note = payload.get("note") or ""
-            
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
+
             # -------------------- Validate required fields --------------------
             if not transaction_type:
                 return request.make_json_response({"error": "transaction_type is required"}, status=400)
@@ -830,6 +873,9 @@ class ContactRegistrationController(http.Controller):
                     image_url=image_url,
                     bank=bank,
                     account_number=account_number,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
                 )
                 if error:
                     return request.make_json_response({"error": str(error)}, status=500)
@@ -885,6 +931,9 @@ class ContactRegistrationController(http.Controller):
             comp_type = (payload.get("type") or "").strip().lower()
             amount = payload.get("amount")
             note = payload.get("note") or ""
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
 
             # -------------------- Validate input --------------------
             if not amount:
@@ -952,7 +1001,7 @@ class ContactRegistrationController(http.Controller):
             if comp_type == "return_bonus":
                 # Bonus -> credit note using existing helper and compensation product expense account
                 journal = env["account.journal"].sudo().with_company(company_id).search(
-                    [("company_id", "=", company_id), ("type", "=", "general")],
+                    [("type", "=", "general"), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
                     limit=1,
                     )
                 if not journal:
@@ -968,9 +1017,11 @@ class ContactRegistrationController(http.Controller):
                 move_vals = {
                     "move_type": "entry",
                     "journal_id": journal.id,   
-                    "date": fields.Date.today(),
+                    "date": accounting_date,
                     "ref": ref,
                     "is_from_api": True,
+                    "note_from_api": note_from_api or False,
+                    "api_payload": api_payload or False,
                     "line_ids": [
                         (0, 0, {
                     "name": ref,
@@ -997,7 +1048,14 @@ class ContactRegistrationController(http.Controller):
             elif comp_type == "coupon":
                 # Bonus -> credit note using existing helper and compensation product expense account
                 move = self.create_driver_coupon_credit_note(
-                    env, company_id, partner, amount, description
+                    env,
+                    company_id,
+                    partner,
+                    amount,
+                    description,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
                 )
                 if not move:
                     return request.make_json_response(
@@ -1008,7 +1066,15 @@ class ContactRegistrationController(http.Controller):
             elif comp_type == "bonus":
                 # Bonus -> credit note using existing helper and compensation product expense account
                 move = self.create_driver_coupon_credit_note(
-                    env, company_id, partner, amount, description, product=product
+                    env,
+                    company_id,
+                    partner,
+                    amount,
+                    description,
+                    product=product,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
                 )
                 if not move:
                     return request.make_json_response(
@@ -1024,7 +1090,13 @@ class ContactRegistrationController(http.Controller):
                     "quantity": 1,
                     "price_unit": amount,
                 }
-                move = card._create_invoice_from_lines(partner, [invoice_line_vals])
+                move = card._create_invoice_from_lines(
+                    partner,
+                    [invoice_line_vals],
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
+                )
 
             # -------------------- Wallet & loyalty history --------------------
             balance_before = card.caram_get_posted_balance()
@@ -1072,6 +1144,9 @@ class ContactRegistrationController(http.Controller):
             env = self._get_env(user)
             company_id = user.company_id.id
             company = env["res.company"].sudo().browse(company_id)
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
 
             rider_id = payload.get("odoo_rider_id")
             driver_id = payload.get("odoo_driver_id")
@@ -1146,9 +1221,11 @@ class ContactRegistrationController(http.Controller):
             move_vals = {
                 "move_type": "entry",
                 "journal_id": journal.id,
-                "date": fields.Date.today(),
+                "date": accounting_date,
                 "ref": ref,
                 "is_from_api": True,
+                "note_from_api": note_from_api or False,
+                "api_payload": api_payload or False,
                 "line_ids": [
                     (
                         0,
@@ -1286,6 +1363,9 @@ class ContactRegistrationController(http.Controller):
             rider_id = payload.get("rider_id")
             driver_id = payload.get("driver_id") or payload.get("driver")
             payment_mode = payload.get("payment_mode")
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
 
             if not payment_mode:
                 return request.make_json_response({"error": "payment_mode is required"}, status=400)
@@ -1344,6 +1424,9 @@ class ContactRegistrationController(http.Controller):
                     commission_amount=commission_amount,
                     penalties=penalties,
                     payment_mode=payment_mode,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
                 )
                 if coupon_value>0:
                     # Wallet
@@ -1356,7 +1439,14 @@ class ContactRegistrationController(http.Controller):
 
                     # Bonus -> credit note using existing helper and compensation product expense account
                     move = self.create_driver_coupon_credit_note(
-                    env, company_id, driver, coupon_value, coupon_description
+                    env,
+                    company_id,
+                    driver,
+                    coupon_value,
+                    coupon_description,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
                 )
                     if not move:
                         return request.make_json_response(

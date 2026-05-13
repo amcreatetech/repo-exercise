@@ -5,7 +5,8 @@ from odoo.http import request
 from odoo.exceptions import UserError, ValidationError
 import json
 
-
+import logging
+_logger = logging.getLogger(__name__)
 
 class SubscriptionController(http.Controller):
     """Controller for subscription management APIs"""
@@ -43,7 +44,7 @@ class SubscriptionController(http.Controller):
         """Create subscription, invoice, and pay from wallet"""
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
-
+            _logger.info(f"Payload in create_subscription API: {payload}")
             # Authentication
             user = self._authenticate()
             env = self._get_env(user)
@@ -107,6 +108,7 @@ class SubscriptionController(http.Controller):
                 start_date=start_date,
                 end_date=end_date,
                 company_id=company_id,
+                api_payload=payload,
             )
 
             if result.get('error'):

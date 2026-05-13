@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from odoo import fields, models, _
 from odoo.exceptions import UserError
 import logging
@@ -36,7 +34,9 @@ class CaramRide(models.Model):
     state = fields.Selection([("draft", "Draft"), ("paid", "Paid")], default="draft", index=True)
     paid_at = fields.Datetime(readonly=True)
 
-    def _create_journal_entry(self, driver, rider, amount):
+    def _create_journal_entry(
+        self, driver, rider, amount, accounting_date=None, note_from_api=False, api_payload=False
+    ):
         """Create & post a journal entry transferring wallet amount rider -> driver.
 
         Uses company configured wallet liability accounts.
@@ -54,19 +54,22 @@ class CaramRide(models.Model):
             raise UserError(_("Driver has no receivable account."))
 
         journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-            [("company_id", "=", self.company_id.id), ("type", "=", "general")],
+            [("type", "=", "general"), '|', ('company_id', '=', self.company_id.id), ('company_id', 'parent_of', self.company_id.id)],
             limit=1,
         )
         if not journal:
             raise UserError(_("No journal found to post CarAm wallet transfer entries."))
 
         ref = f"Ride {self.ride_id} wallet transfer"
+        move_date = accounting_date or fields.Date.context_today(self)
         move_vals = {
             "move_type": "entry",
             "journal_id": journal.id,   
-            "date": fields.Date.context_today(self),
+            "date": move_date,
             "ref": ref,
             "is_from_api": True,
+            "note_from_api": note_from_api or False,
+            "api_payload": api_payload or False,
             "line_ids": [
                 (0, 0, {
                     "name": ref,
@@ -108,10 +111,14 @@ class CaramRide(models.Model):
     # ---------------------------
     # Main payment logic
     # ---------------------------
-    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode):
+    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False):
         self.ensure_one()
         if self.state == "paid":
             raise UserError(_("Ride already paid."))
+
+        doc_date = accounting_date or fields.Date.context_today(self)
+        api_note = note_from_api or False
+        stored_api_payload = api_payload or False
 
         wallet_paid = float(wallet_paid or 0.0)
         cash_paid = float(cash_paid or 0.0)
@@ -167,6 +174,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.driver_id,
                 should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -177,6 +187,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
 
             rider_wallet_delta = 0.0
@@ -190,6 +203,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.rider_id,
                 should_create_payment=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             
             driver_card.caram_addwallet(
@@ -198,6 +214,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.driver_id,
                 should_create_payment=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             driver_card.caram_withdraw(
                 commission_amount + driver_penalty_amount,
@@ -207,6 +226,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.driver_id,
                 should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -217,6 +239,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
 
             # cash_paid > fare_amount => diff is deposited to rider wallet
@@ -232,6 +257,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.rider_id,
                 should_create_invoice=False,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
 
             history2 = driver_card.caram_addwallet(
@@ -240,10 +268,20 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.driver_id,
                 should_create_payment=False,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             # Create Journal Entery
             # to transfer from rider wallet to driver wallet
-            journal_entry = self._create_journal_entry(self.driver_id, self.rider_id, wallet_paid)
+            journal_entry = self._create_journal_entry(
+                self.driver_id,
+                self.rider_id,
+                wallet_paid,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+            )
             history1.sudo().write({
                 "order_model": "account.move",
                 "order_id": journal_entry.id,
@@ -260,6 +298,9 @@ class CaramRide(models.Model):
                 status="posted",
                 driver=self.driver_id,
                 should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -270,6 +311,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
 
             rider_wallet_delta = -self.fare_amount
@@ -277,7 +321,14 @@ class CaramRide(models.Model):
 
         elif payment_mode == "wallet_cash":
             if wallet_paid > 0:
-                journal_entry = self._create_journal_entry(self.driver_id, self.rider_id, wallet_paid)
+                journal_entry = self._create_journal_entry(
+                    self.driver_id,
+                    self.rider_id,
+                    wallet_paid,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                )
                 history1 = rider_card.caram_withdraw(
                     wallet_paid,
                     rider_penalty_amount,
@@ -286,6 +337,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_invoice=False,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
                 history2 = driver_card.caram_addwallet(
                     wallet_paid,
@@ -293,6 +347,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.driver_id,
                     should_create_payment=False,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
                 history1.sudo().write({
                     "order_model": "account.move",
@@ -312,6 +369,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_payment=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
                 driver_card.caram_addwallet(
                     -due_amount,
@@ -319,6 +379,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.driver_id,
                     should_create_payment=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
               
             if commission_amount >= 0 or driver_penalty_amount>=0:
@@ -330,6 +393,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.driver_id,
                     should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -340,6 +406,9 @@ class CaramRide(models.Model):
                     status="posted",
                     driver=self.rider_id,
                     should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
                 )
 
             rider_wallet_delta = -wallet_paid

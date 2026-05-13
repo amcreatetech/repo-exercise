@@ -8,7 +8,14 @@ class LoyaltyCard(models.Model):
     _inherit = "loyalty.card"
 
 
-    def _create_invoice_from_lines(self, partner_id, invoice_line_vals_list):
+    def _create_invoice_from_lines(
+        self,
+        partner_id,
+        invoice_line_vals_list,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
+    ):
         """Create & post an out_invoice for partner with provided invoice lines."""
         self.ensure_one()
         if not partner_id:
@@ -16,18 +23,22 @@ class LoyaltyCard(models.Model):
         if not invoice_line_vals_list:
             raise UserError(_("Missing invoice lines."))
 
+        doc_date = accounting_date or fields.Date.context_today(self)
         invoice = (
             self.env["account.move"]
             .sudo()
             .with_company(self.company_id.id)
             .create(
                 {
-                    "invoice_date": fields.Date.today(),
+                    "invoice_date": doc_date,
+                    "date": doc_date,
                     "journal_id": self._get_general_journal(),
                     "move_type": "out_invoice",
                     "partner_id": partner_id.id,
                     "invoice_line_ids": [(0, 0, vals) for vals in invoice_line_vals_list],
                     "is_from_api": True,
+                    "note_from_api": note_from_api or False,
+                    "api_payload": api_payload or False,
                 }
             )
         )
@@ -58,7 +69,16 @@ class LoyaltyCard(models.Model):
             "price_unit": amount,
         }
 
-    def create_points_credit_note(self, env, company_id, partner, amount):
+    def create_points_credit_note(
+        self,
+        env,
+        company_id,
+        partner,
+        amount,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
+    ):
         """Create & post a customer credit note to represent the welcome coupon."""
         points_product = env['product.product'].sudo().with_company(company_id).search(
             [('is_points', '=', True)],
@@ -80,11 +100,13 @@ class LoyaltyCard(models.Model):
         if not expense_account:
             return False
 
+        doc_date = accounting_date or fields.Date.context_today(self)
         credit_note = env['account.move'].sudo().with_company(company_id).create({
             'partner_id': partner.id,
             
             'move_type': 'out_refund',
-            'invoice_date': fields.Date.today(),
+            'invoice_date': doc_date,
+            'date': doc_date,
             'invoice_line_ids': [(0, 0, {
                 'product_id': points_product.id,
                 'account_id': expense_account.id,
@@ -93,6 +115,8 @@ class LoyaltyCard(models.Model):
                 'price_unit': amount,
             })],
             'is_from_api': True,
+            'note_from_api': note_from_api or False,
+            'api_payload': api_payload or False,
         })
         
         # Post the credit note to make it effective
@@ -111,6 +135,9 @@ class LoyaltyCard(models.Model):
         image_url=None,
         bank=None,
         account_number=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
     ):
         """Create an account.payment and optionally post it.
 
@@ -125,7 +152,9 @@ class LoyaltyCard(models.Model):
         journal = self.env["account.journal"].sudo().search(
             [
                 ("wallet_type_id", "=", payment_method_type),
-                ("company_id", "=", self.company_id.id),
+                '|',
+                ('company_id', '=', self.company_id.id),
+                ('company_id', 'parent_of', self.company_id.id),
             ],
             limit=1,
         )
@@ -138,12 +167,15 @@ class LoyaltyCard(models.Model):
             "partner_type": "customer",
             "amount": abs(amount),
             "journal_id": journal.id,
+            "date": accounting_date or fields.Date.context_today(self),
             "memo": ref,
             "caram_transaction_id": transaction_id,
             "caram_image_url": image_url,
             "caram_bank": bank,
             "caram_account_number": account_number,
             "is_from_api": True,
+            "note_from_api": note_from_api or False,
+            "api_payload": api_payload or False,
         }
 
         payment = (
@@ -163,7 +195,10 @@ class LoyaltyCard(models.Model):
         if journal:
             return journal.id
         journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-            [("company_id", "=", self.company_id.id), ("type", "=", "sale")], limit=1
+            [("type", "=", "sale"), 
+            '|', ('company_id', '=', self.company_id.id), 
+            ('company_id', 'parent_of', self.company_id.id)
+            ], limit=1
         )
         if not journal:
             raise UserError(_("No general journal found to post CarAm ride accounting entries."))
@@ -192,6 +227,9 @@ class LoyaltyCard(models.Model):
         should_create_invoice=True,
         order_model=None,
         order_id=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
     ): 
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -209,7 +247,13 @@ class LoyaltyCard(models.Model):
                 invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount))
             if fine_amount > 0:
                 invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount))
-            invoice = self._create_invoice_from_lines(driver, invoice_lines)
+            invoice = self._create_invoice_from_lines(
+                driver,
+                invoice_lines,
+                accounting_date=accounting_date,
+                note_from_api=note_from_api,
+                api_payload=api_payload,
+            )
         else:
             invoice = None
         tx = (
@@ -244,6 +288,9 @@ class LoyaltyCard(models.Model):
         should_create_payment=True,
         order_model=None,
         order_id=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
     ):
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -260,6 +307,9 @@ class LoyaltyCard(models.Model):
                 image_url=None,
                 bank=None,
                 account_number=None,
+                accounting_date=accounting_date,
+                note_from_api=note_from_api,
+                api_payload=api_payload,
             )
             if error:
                 raise UserError(error)

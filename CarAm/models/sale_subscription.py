@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from odoo import models, fields, api
 from odoo import Command
 
@@ -15,7 +13,7 @@ class SaleOrder(models.Model):
     @api.model
     def create_subscription_with_invoice(self, partner_id, caram_subscription_id, 
                                          subscription_type, price, disc, start_date, 
-                                         end_date, company_id):
+                                         end_date, company_id, api_payload=False):
         """Create subscription, invoice, and pay from wallet balance"""
         
         # 1. Get subscription plan
@@ -80,13 +78,16 @@ class SaleOrder(models.Model):
         invoice.sudo().write({
           'invoice_date': start_date,
           'is_from_api': True,
+          'api_payload': api_payload or False,
           })
         # --- FIX END ---
         
         # Set journal if configured (for subscription invoices)
         journal = self.env['account.journal'].sudo().search([
-            ('company_id', '=', company_id),
             ('type', '=', 'sale'),
+            '|',
+            ('company_id', '=', company_id),
+            ('company_id', 'parent_of', company_id),
             ('is_used_for_subscriptions', '=', True)
         ], limit=1)
         if journal:

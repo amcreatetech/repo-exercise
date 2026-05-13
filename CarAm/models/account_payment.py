@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from odoo import models, fields
 from odoo.exceptions import UserError
 from cryptography.fernet import Fernet
@@ -33,6 +31,18 @@ class AccountPayment(models.Model):
         help="Indicates if this payment was created from API",
         readonly=True,
         copy=False,
+    )
+    note_from_api = fields.Text(
+        string="Note from API",
+        copy=False,
+        readonly=True,
+        help="Optional note sent by the external API when this payment was created.",
+    )
+    api_payload = fields.Text(
+        string="API Payload",
+        copy=False,
+        readonly=True,
+        help="Full JSON request body received from the API when this payment was created.",
     )
 
     def _get_caram_api_url(self):

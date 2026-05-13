@@ -60,9 +60,11 @@
             <field name="vat" position="after">
                 <field name="sub_id" optional="show"/>
                 <field name="contact_type" optional="show"/>
+                <field name="wallet_balance" optional="hide"/>
                 <field name="gender" optional="hide"/>
             </field>
         </field>
     </record>
 
 </odoo>
+

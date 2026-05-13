@@ -27,6 +27,11 @@
                         <group>
                             <field name="caram_decline_reason" colspan="4"/>
                         </group>
+
+                        <group string="API">
+                            <field name="note_from_api" colspan="4" nolabel="1" placeholder="No API note"/>
+                            <field name="api_payload" colspan="4" widget="text" nolabel="1" placeholder="No API payload"/>
+                        </group>
                     </page>
                 </notebook>
             </xpath>
