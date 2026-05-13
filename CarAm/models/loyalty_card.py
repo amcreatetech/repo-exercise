@@ -32,6 +32,7 @@ class LoyaltyCard(models.Model):
                 {
                     "invoice_date": doc_date,
                     "date": doc_date,
+                    'invoice_date_due': doc_date,
                     "journal_id": self._get_general_journal(),
                     "move_type": "out_invoice",
                     "partner_id": partner_id.id,
@@ -107,6 +108,7 @@ class LoyaltyCard(models.Model):
             'move_type': 'out_refund',
             'invoice_date': doc_date,
             'date': doc_date,
+            'invoice_date_due': doc_date,
             'invoice_line_ids': [(0, 0, {
                 'product_id': points_product.id,
                 'account_id': expense_account.id,

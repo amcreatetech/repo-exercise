@@ -114,6 +114,7 @@ class ContactRegistrationController(http.Controller):
             'move_type': 'out_refund',
             'invoice_date': doc_date,
             'date': doc_date,
+            'invoice_date_due': doc_date,
             'invoice_line_ids': [(0, 0, {
                 'product_id': product_coupon.id,
                 'account_id': expense_account.id,
@@ -1414,6 +1415,7 @@ class ContactRegistrationController(http.Controller):
                         "commission_amount": commission_amount,
                         "wallet_paid": wallet_paid,
                         "cash_paid": cash_paid,
+                        "paid_at": accounting_date or fields.Datetime.now(),
                     }
                 )
             try:
