@@ -809,6 +809,7 @@ class ContactRegistrationController(http.Controller):
             amount = float(payload.get("amount", 0))
             transaction_id = payload.get("transaction_id")
             transaction_type = payload.get("transaction_type")
+            payment_method_type = payload.get("payment_method_type")
             bank = payload.get("bank")
             account_number = payload.get("account_number")
             note = payload.get("note") or ""
@@ -861,7 +862,7 @@ class ContactRegistrationController(http.Controller):
                 ref = note
                 should_post = (transaction_type == "direct")
                 state = 'posted' if should_post else 'draft'
-                payment_method_type = 'bank'
+                payment_method_type = payment_method_type
                 image_url = ''
               
                 move, error = wallet._create_payment(
