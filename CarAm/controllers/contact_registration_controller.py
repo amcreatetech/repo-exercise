@@ -848,8 +848,9 @@ class ContactRegistrationController(http.Controller):
             total_used = sum(posted_history.mapped('used') or [0.0])
             total_balance = total_issued - total_used
             
-            if net_amount > total_balance:
-                return request.make_json_response({"error": "Insufficient wallet balance"}, status=409)
+            # TODO 
+            # if net_amount > total_balance:
+            #     return request.make_json_response({"error": "Insufficient wallet balance"}, status=409)
             
             # -------------------- Create Journal Entry --------------------
             contact_type = partner.contact_type
