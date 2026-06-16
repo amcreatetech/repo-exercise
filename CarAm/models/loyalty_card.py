@@ -308,14 +308,7 @@ class LoyaltyCard(models.Model):
             ].sudo().search(
                 [("company_id", "=", company_id), ("type", "=", "general")], limit=1
             )
-            if not journal:
-                return request.make_json_response(
-                    {
-                        "status": 500,
-                        "message": "No journal found for wallet clearing entries",
-                    },
-                    status=500,
-                )
+            
 
             base_amount = abs(amount)
             if amount > 0:
