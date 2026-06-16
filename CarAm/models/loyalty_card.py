@@ -386,11 +386,7 @@ class LoyaltyCard(models.Model):
                     limit=1,
                 )
             )
-            if not rider_card or not driver_card:
-                return request.make_json_response(
-                    {"status": 404, "message": "Wallet not found for rider or driver"},
-                    status=404,
-                )
+            
 
             if amount > 0:
                 # rider.wallet -= amount, driver.wallet += amount
@@ -446,13 +442,10 @@ class LoyaltyCard(models.Model):
                 "direction": direction,
                 "message": "Wallet clearing completed successfully",
             }
-            return request.make_json_response(response, status=200)
+            return response
 
         except Exception as e:
-            return request.make_json_response(
-                {"status": 500, "message": f"Internal server error: {str(e)}"},
-                status=500,
-            )
+            return str(e)
 
     def caram_addwallet(
         self,
