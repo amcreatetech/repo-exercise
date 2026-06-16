@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from urllib import request
+
 from odoo import models, _, fields
 from odoo.exceptions import UserError
 
@@ -279,6 +281,185 @@ class LoyaltyCard(models.Model):
         )
         self.sudo().write({"points": balance_after})
         return tx
+
+    #feda edit - method to clear wallet between rider and driver in case of cash exceed payment or refunds
+    def caram_wallet_clearing(self, 
+        amount,
+        rider,
+        *,
+        driver=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,):
+        try:
+            user = self._authenticate()
+            env = self._get_env(user)
+            company_id = user.company_id.id
+            company = env["res.company"].sudo().browse(company_id)
+           
+            
+
+            # Wallet accounts from company configuration
+            rider_wallet_account = company.caram_rider_wallets_account_id
+            driver_wallet_account = company.caram_driver_wallet_account_id
+
+            journal = company.caram_clearing_journal_id or env[
+                "account.journal"
+            ].sudo().search(
+                [("company_id", "=", company_id), ("type", "=", "general")], limit=1
+            )
+            if not journal:
+                return request.make_json_response(
+                    {
+                        "status": 500,
+                        "message": "No journal found for wallet clearing entries",
+                    },
+                    status=500,
+                )
+
+            base_amount = abs(amount)
+            if amount > 0:
+                # Rider -> Driver
+                debit_partner = rider
+                debit_account = rider_wallet_account
+                credit_partner = driver
+                credit_account = driver_wallet_account
+                direction = "rider_to_driver"
+            else:
+                # Driver -> Rider
+                debit_partner = driver
+                debit_account = driver_wallet_account
+                credit_partner = rider
+                credit_account = rider_wallet_account
+                direction = "driver_to_rider"
+
+            ref = f"Wallet clearing {direction.replace('_', ' ')}"
+            move_vals = {
+                "move_type": "entry",
+                "journal_id": journal.id,
+                "date": accounting_date,
+                "ref": ref,
+                "is_from_api": True,
+                "note_from_api": note_from_api or False,
+                "api_payload": api_payload or False,
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": ref,
+                            "partner_id": debit_partner.id,
+                            "account_id": debit_account.id,
+                            "debit": base_amount,
+                            "credit": 0.0,
+                        },
+                    ),
+                    (
+                        0,
+                        0,
+                        {
+                            "name": ref,
+                            "partner_id": credit_partner.id,
+                            "account_id": credit_account.id,
+                            "debit": 0.0,
+                            "credit": base_amount,
+                        },
+                    ),
+                ],
+            }
+
+            move = (
+                env["account.move"]
+                .sudo()
+                .with_company(company_id)
+                .create(move_vals)
+            )
+            move.action_post()
+
+            # Wallet balance updates
+            rider_card = (
+                env["loyalty.card"]
+                .sudo()
+                .search(
+                    [("partner_id", "=", rider.id), ("company_id", "=", company_id)],
+                    limit=1,
+                )
+            )
+            driver_card = (
+                env["loyalty.card"]
+                .sudo()
+                .search(
+                    [("partner_id", "=", driver.id), ("company_id", "=", company_id)],
+                    limit=1,
+                )
+            )
+            if not rider_card or not driver_card:
+                return request.make_json_response(
+                    {"status": 404, "message": "Wallet not found for rider or driver"},
+                    status=404,
+                )
+
+            if amount > 0:
+                # rider.wallet -= amount, driver.wallet += amount
+                rider_card.caram_withdraw(
+                    base_amount,
+                    commission_amount=0.0,
+                    fine_amount=0.0,
+                    description=f"Wallet clearing to driver {driver.id}",
+                    status="posted",
+                    driver=driver,
+                    should_create_invoice=False,
+                    order_model="account.move",
+                    order_id=move.id,
+                )
+                driver_card.caram_addwallet(
+                    base_amount,
+                    description=f"Wallet clearing from rider {rider.id}",
+                    status="posted",
+                    driver=driver,
+                    should_create_payment=False,
+                    order_model="account.move",
+                    order_id=move.id,
+                )
+            else:
+                # driver.wallet -= amount_abs, rider.wallet += amount_abs
+                driver_card.caram_withdraw(
+                    base_amount,
+                    commission_amount=0.0,
+                    fine_amount=0.0,
+                    description=f"Wallet clearing to rider {rider.id}",
+                    status="posted",
+                    driver=driver,
+                    should_create_invoice=False,
+                    order_model="account.move",
+                    order_id=move.id,
+                )
+                rider_card.caram_addwallet(
+                    base_amount,
+                    description=f"Wallet clearing from driver {driver.id}",
+                    status="posted",
+                    driver=rider,
+                    should_create_payment=False,
+                    order_model="account.move",
+                    order_id=move.id,
+                )
+
+            response = {
+                "status": 200,
+                "journal_entry_id": move.id,
+                "rider_id": rider.id,
+                "driver_id": driver.id,
+                "amount": amount,
+                "direction": direction,
+                "message": "Wallet clearing completed successfully",
+            }
+            return request.make_json_response(response, status=200)
+
+        except Exception as e:
+            return request.make_json_response(
+                {"status": 500, "message": f"Internal server error: {str(e)}"},
+                status=500,
+            )
 
     def caram_addwallet(
         self,
