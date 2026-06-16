@@ -198,7 +198,7 @@ class CaramRide(models.Model):
         #feda edit - in case of cash exceed, the extra amount is deposited to rider wallet and commission + fine is withdrawn from driver wallet
         elif payment_mode == "cash_exceed": 
             extra = cash_paid - self.fare_amount
-            rider_card.caram_wallet_clearing(
+            resp = rider_card.caram_wallet_clearing(
                 extra,
                 rider=self.rider_id,
                 driver=self.driver_id,
@@ -206,7 +206,8 @@ class CaramRide(models.Model):
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
             )
-            
+            _logger.info(f"Cash exceed case: cash_paid={cash_paid}, fare_amount={self.fare_amount}, extra={extra}. Wallet clearing done.")
+            _logger.info(f"caram_wallet_clearing responce {resp}")
             driver_card.caram_withdraw(
                 commission_amount + driver_penalty_amount,
                 commission_amount,
