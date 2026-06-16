@@ -292,10 +292,9 @@ class LoyaltyCard(models.Model):
         note_from_api=False,
         api_payload=False,):
         try:
-            user = self._authenticate()
-            env = self._get_env(user)
-            company_id = user.company_id.id
-            company = env["res.company"].sudo().browse(company_id)
+            self.ensure_one()
+            company_id = self.company_id.id
+            company = self.env["res.company"].sudo().browse(company_id)
            
             
 
@@ -303,7 +302,7 @@ class LoyaltyCard(models.Model):
             rider_wallet_account = company.caram_rider_wallets_account_id
             driver_wallet_account = company.caram_driver_wallet_account_id
 
-            journal = company.caram_clearing_journal_id or env[
+            journal = company.caram_clearing_journal_id or self.env[
                 "account.journal"
             ].sudo().search(
                 [("company_id", "=", company_id), ("type", "=", "general")], limit=1
@@ -362,7 +361,7 @@ class LoyaltyCard(models.Model):
             }
 
             move = (
-                env["account.move"]
+                self.env["account.move"]
                 .sudo()
                 .with_company(company_id)
                 .create(move_vals)
@@ -371,7 +370,7 @@ class LoyaltyCard(models.Model):
 
             # Wallet balance updates
             rider_card = (
-                env["loyalty.card"]
+                self.env["loyalty.card"]
                 .sudo()
                 .search(
                     [("partner_id", "=", rider.id), ("company_id", "=", company_id)],
@@ -379,7 +378,7 @@ class LoyaltyCard(models.Model):
                 )
             )
             driver_card = (
-                env["loyalty.card"]
+                self.env["loyalty.card"]
                 .sudo()
                 .search(
                     [("partner_id", "=", driver.id), ("company_id", "=", company_id)],
