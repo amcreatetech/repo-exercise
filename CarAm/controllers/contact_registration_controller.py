@@ -965,7 +965,7 @@ class ContactRegistrationController(http.Controller):
                 env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", partner.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", partner.id), ("company_id", "parent_of", company_id)],
                     limit=1,
                 )
             )
@@ -977,10 +977,18 @@ class ContactRegistrationController(http.Controller):
             # -------------------- Resolve product per type --------------------
             # driver_coupon / rider_coupon / fees each need their own product field
             # on res.company. Rename these if your actual fields differ.
+            # دور أول على إعداد خاص بالفرع نفسه بالضبط
             config = env["caram.compensation.product.config"].sudo().search(
-                    [("company_id", "=", company_id), ("type", "=", comp_type)],
+                [("company_id", "=", company_id), ("type", "=", comp_type)],
+                limit=1,
+            )
+            # إذا مالقيتش، دور على إعداد الأب (الشركة الأم)
+            if not config:
+                config = env["caram.compensation.product.config"].sudo().search(
+                    [("company_id", "parent_of", company_id), ("type", "=", comp_type)],
                     limit=1,
                 )
+            
             if not config or not config.product_id:
                 return request.make_json_response(
                     {
