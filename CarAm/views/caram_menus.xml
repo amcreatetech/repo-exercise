@@ -17,6 +17,21 @@
         groups="base.group_user"
     />
 
+    <menuitem
+    id="menu_caram_compensation_root"
+    name="Compensation"
+    parent="menu_caram_root"
+    sequence="20"
+    groups="base.group_system"
+    />
+
+    <menuitem
+        id="menu_caram_compensation_product_config"
+        name="Compensation Products"
+        parent="menu_caram_compensation_root"
+        action="action_caram_compensation_product_config"
+        sequence="10"
+        groups="base.group_system"
+    />
+
 </odoo>
-
-

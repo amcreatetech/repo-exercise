@@ -34,6 +34,7 @@
         'views/account_payment_views.xml',
         'views/product_template_views.xml',
         'views/caram_ride_views.xml',
+        "views/caram_compensation_product_config_views.xml",
         'views/caram_menus.xml',
         'wizards/loyalty_history_wizard_views.xml',
     ],

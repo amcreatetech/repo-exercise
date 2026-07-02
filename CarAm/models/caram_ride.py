@@ -3,6 +3,35 @@ from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 
+
+
+class CaramCompensationProductConfig(models.Model):
+    _name = "caram.compensation.product.config"
+    _description = "Compensation Type -> Product mapping per company"
+    _rec_name = "type"
+
+    company_id = fields.Many2one(
+        "res.company", required=True, default=lambda self: self.env.company
+    )
+    type = fields.Selection(
+        [
+            ("bonus", "Bonus"),
+            ("driver_coupon", "Driver Coupon"),
+            ("rider_coupon", "Rider Coupon"),
+            ("fees", "Fees"),
+            ("discount", "Discount"),
+        ],
+        required=True,
+    )
+    product_id = fields.Many2one("product.product", required=True)
+
+    _sql_constraints = [
+        (
+            "company_type_uniq",
+            "unique(company_id, type)",
+            "Only one product mapping allowed per type per company.",
+        ),
+    ]
 class CaramRide(models.Model):
     _name = "caram.ride"
     _description = "CarAm Ride"

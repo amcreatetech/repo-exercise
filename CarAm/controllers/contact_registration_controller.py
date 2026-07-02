@@ -1,3 +1,5 @@
+from networkx import config
+
 from odoo import fields, http, _
 from odoo.http import request
 from odoo.exceptions import UserError
@@ -939,7 +941,7 @@ class ContactRegistrationController(http.Controller):
             api_payload = payload
 
             # -------------------- Validate input --------------------
-            if not amount:
+            if amount is None or amount == 0:
                 return request.make_json_response({"error": "amount is required"}, status=400)
 
             if not odoo_partner_id:
@@ -947,9 +949,10 @@ class ContactRegistrationController(http.Controller):
                     {"status": 400, "message": "odoo_partner_id is required"}, status=400
                 )
 
-            if comp_type not in ["bonus", "discount", "return_bonus", "coupon"]:
+            allowed_types = ["bonus", "driver_coupon", "rider_coupon", "discount", "fees"]
+            if comp_type not in allowed_types:
                 return request.make_json_response(
-                    {"status": 400, "message": "Invalid type (must be 'bonus', 'coupon', 'return_bonus' or 'discount')"},
+                    {"status": 400, "message": f"Invalid type (must be one of {allowed_types})"},
                     status=400,
                 )
 
@@ -974,19 +977,33 @@ class ContactRegistrationController(http.Controller):
                     {"status": 404, "message": "Wallet not found for this partner"}, status=404
                 )
 
-            # Compensation product
-            if comp_type == "return_bonus":
-                product = env['product.product'].sudo().with_company(company_id).search(
-                [('is_coupon', '=', True)],
-                limit=1,
+            # -------------------- Resolve product per type --------------------
+            # driver_coupon / rider_coupon / fees each need their own product field
+            # on res.company. Rename these if your actual fields differ.
+            config = env["caram.compensation.product.config"].sudo().search(
+                    [("company_id", "=", company_id), ("type", "=", comp_type)],
+                    limit=1,
                 )
-            else:
-                product = company.caram_compensation_product_id
-                if not product:
-                    return request.make_json_response(
-                    {"status": 500, "message": "Compensation product not configured in company settings"},
+            if not config or not config.product_id:
+                return request.make_json_response(
+                    {
+                        "status": 500,
+                        "message": f"Compensation product not configured for type '{comp_type}' "
+                                f"on company '{company.name}'",
+                    },
                     status=500,
                 )
+            product = config.product_id.with_company(company_id)
+            if not product:
+                return request.make_json_response(
+                    {
+                        "status": 500,
+                        "message": f"Compensation product not configured for type '{comp_type}' "
+                                f"(field '{product_field}' on company settings)",
+                    },
+                    status=500,
+                )
+            product = product.with_company(company_id)
 
             expense_account = (
                 product.property_account_expense_id
@@ -998,28 +1015,32 @@ class ContactRegistrationController(http.Controller):
                     status=500,
                 )
 
-            description = f"Wallet compensation ({comp_type}) {note}"
+            is_return = amount < 0
+            abs_amount = abs(amount)
+            description = f"Wallet compensation ({comp_type}{' - return' if is_return else ''}) {note}"
 
             # -------------------- Accounting entry --------------------
-            if comp_type == "return_bonus":
-                # Bonus -> credit note using existing helper and compensation product expense account
+            if is_return:
+                # Negative amount on ANY type -> reversing manual journal entry,
+                # using the product/expense account resolved for that type above.
                 journal = env["account.journal"].sudo().with_company(company_id).search(
                     [("type", "=", "general"), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
                     limit=1,
-                    )
+                )
                 if not journal:
                     raise UserError(_("No journal found to post CarAm wallet transfer entries."))
 
                 wallet_receivable = partner.with_company(company_id).property_account_receivable_id
                 if not wallet_receivable:
                     return request.make_json_response(
-                            {"error": "Wallet partner has no receivable account configured"},
-                            status=500,
-                        )
-                ref = f"Return Bonus {partner.name} wallet transfer"
+                        {"error": "Wallet partner has no receivable account configured"},
+                        status=500,
+                    )
+
+                ref = f"Return ({comp_type}) {partner.name} wallet transfer"
                 move_vals = {
                     "move_type": "entry",
-                    "journal_id": journal.id,   
+                    "journal_id": journal.id,
                     "date": accounting_date,
                     "ref": ref,
                     "is_from_api": True,
@@ -1027,47 +1048,28 @@ class ContactRegistrationController(http.Controller):
                     "api_payload": api_payload or False,
                     "line_ids": [
                         (0, 0, {
-                    "name": ref,
-                    "partner_id": partner.id,
-                    'account_id': wallet_receivable.id,
-                    "debit": amount,
-                    "credit": 0.0,
+                            "name": ref,
+                            "partner_id": partner.id,
+                            "account_id": wallet_receivable.id,
+                            "debit": abs_amount,
+                            "credit": 0.0,
                         }),
                         (0, 0, {
-                    "name": ref,
-                    "partner_id": partner.id,
-                    'product_id': product.id,
-                    'account_id': expense_account.id,
-                    "debit": 0.0,
-                    "credit": amount,
+                            "name": ref,
+                            "partner_id": partner.id,
+                            "product_id": product.id,
+                            "account_id": expense_account.id,
+                            "debit": 0.0,
+                            "credit": abs_amount,
                         }),
-                        ],
-                     }
+                    ],
+                }
 
                 journal_entry = env["account.move"].sudo().with_company(company_id).create(move_vals)
                 journal_entry.action_post()
                 move = journal_entry
 
-            elif comp_type == "coupon":
-                # Bonus -> credit note using existing helper and compensation product expense account
-                move = self.create_driver_coupon_credit_note(
-                    env,
-                    company_id,
-                    partner,
-                    amount,
-                    description,
-                    accounting_date=accounting_date,
-                    note_from_api=note_from_api,
-                    api_payload=api_payload,
-                )
-                if not move:
-                    return request.make_json_response(
-                        {"status": 500, "message": "Failed to create welcome coupon credit note"},
-                        status=500,
-                    )
-                
-            elif comp_type == "bonus":
-                # Bonus -> credit note using existing helper and compensation product expense account
+            elif comp_type in ("bonus", "driver_coupon", "rider_coupon"):
                 move = self.create_driver_coupon_credit_note(
                     env,
                     company_id,
@@ -1081,11 +1083,12 @@ class ContactRegistrationController(http.Controller):
                 )
                 if not move:
                     return request.make_json_response(
-                        {"status": 500, "message": "Failed to create compensation credit note"},
+                        {"status": 500, "message": f"Failed to create {comp_type} credit note"},
                         status=500,
                     )
+
             else:
-                # Discount -> invoice entry using _create_invoice_from_lines and expense account
+                # discount / fees -> invoice entry using _create_invoice_from_lines
                 invoice_line_vals = {
                     "product_id": product.id,
                     "account_id": expense_account.id,
@@ -1103,7 +1106,7 @@ class ContactRegistrationController(http.Controller):
 
             # -------------------- Wallet & loyalty history --------------------
             balance_before = card.caram_get_posted_balance()
-            delta = amount if comp_type in ["bonus","coupon"] else -amount
+            delta = amount if comp_type in ("bonus", "driver_coupon", "rider_coupon") else -amount
 
             tx_vals = {
                 "card_id": card.id,
@@ -1125,6 +1128,7 @@ class ContactRegistrationController(http.Controller):
                 "partner_id": partner.id,
                 "wallet_id": card.id,
                 "type": comp_type,
+                "is_return": is_return,
                 "amount": amount,
                 "balance_before": balance_before,
                 "balance_after": balance_after,
@@ -1138,7 +1142,7 @@ class ContactRegistrationController(http.Controller):
                 {"status": 500, "message": f"Internal server error: {str(e)}"},
                 status=500,
             )
-
+    
     @http.route("/api/wallet_clearing", type="http", auth="none", methods=["POST"], csrf=False)
     def wallet_clearing(self, **kw):
         try:
