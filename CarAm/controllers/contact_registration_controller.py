@@ -1,5 +1,3 @@
-from networkx import config
-
 from odoo import fields, http, _
 from odoo.http import request
 from odoo.exceptions import UserError
