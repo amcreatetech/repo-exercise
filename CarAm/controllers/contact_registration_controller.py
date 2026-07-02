@@ -927,8 +927,7 @@ class ContactRegistrationController(http.Controller):
 
             user = self._authenticate()
             env = self._get_env(user)
-            company = user.company_id
-            company_id = company.id
+            company_id = payload.get("company_id")
 
             odoo_partner_id = payload.get("odoo_partner_id")
             comp_type = (payload.get("type") or "").strip().lower()
