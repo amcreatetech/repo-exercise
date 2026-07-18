@@ -20,6 +20,7 @@
                 <field name="sub_id" placeholder="e.g., 12354"/>
                 <field name="gender"/>
                 <field name="contact_type"/>
+                <field name="driver_type"/>
                 <field name="wallet_balance" readonly="1"/>
             </field>
         </field>
@@ -45,6 +46,8 @@
             <group position="inside">
                 <filter string="Contact Type" name="group_by_contact_type" 
                         context="{'group_by': 'contact_type'}"/>
+                <filter string="Driver Type" name="group_by_driver_type"
+                        context="{'group_by': 'driver_type'}"/>
                 <filter string="Gender" name="group_by_gender" 
                         context="{'group_by': 'gender'}"/>
             </group>
@@ -60,6 +63,7 @@
             <field name="vat" position="after">
                 <field name="sub_id" optional="show"/>
                 <field name="contact_type" optional="show"/>
+                <field name="driver_type" optional="hide"/>
                 <field name="wallet_balance" optional="hide"/>
                 <field name="gender" optional="hide"/>
             </field>

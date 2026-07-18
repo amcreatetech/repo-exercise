@@ -195,6 +195,11 @@ class LoyaltyCard(models.Model):
 
     def _get_general_journal(self):
         self.ensure_one()
+        if self.env.context.get("caram_is_airport_trip"):
+            journal = self.company_id.caram_airport_journal_id
+            if not journal:
+                raise UserError(_("Airport journal is not configured for this company."))
+            return journal.id
         journal = self.company_id.caram_wallet_journal_id
         if journal:
             return journal.id
@@ -302,11 +307,16 @@ class LoyaltyCard(models.Model):
             rider_wallet_account = company.caram_rider_wallets_account_id
             driver_wallet_account = company.caram_driver_wallet_account_id
 
-            journal = company.caram_clearing_journal_id or self.env[
-                "account.journal"
-            ].sudo().search(
-                [("company_id", "=", company_id), ("type", "=", "general")], limit=1
-            )
+            if self.env.context.get("caram_is_airport_trip"):
+                journal = company.caram_airport_journal_id
+                if not journal:
+                    raise UserError(_("Airport journal is not configured for this company."))
+            else:
+                journal = company.caram_clearing_journal_id or self.env[
+                    "account.journal"
+                ].sudo().search(
+                    [("company_id", "=", company_id), ("type", "=", "general")], limit=1
+                )
             
 
             base_amount = abs(amount)

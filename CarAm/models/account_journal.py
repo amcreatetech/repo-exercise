@@ -33,3 +33,5 @@ class AccountJournal(models.Model):
         ('tele', 'Tele')
     ], string="Wallet Type", help="Used to categorize journals for wallet transaction")
 
+    expense_account_id = fields.Many2one('account.account', string="Expense Account", help="Used to categorize journals for expense transaction")
+

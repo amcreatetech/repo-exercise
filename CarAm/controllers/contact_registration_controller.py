@@ -1377,7 +1377,13 @@ class ContactRegistrationController(http.Controller):
             payment_mode = payload.get("payment_mode")
             accounting_date = payload.get("date") or False
             note_from_api = payload.get("note_from_api") or False
+            is_airport_trip = payload.get("is_airport_trip", False)
+            driver_type = payload.get("driver_type")
+            expense_amount = payload.get("expense_amount", 0.0)
             api_payload = payload
+
+            if driver_type == 'external' and not expense_amount:
+                return request.make_json_response({"error": "expense_amount is required if driver_type is external"}, status=400)
 
             if not payment_mode:
                 return request.make_json_response({"error": "payment_mode is required"}, status=400)
@@ -1440,6 +1446,9 @@ class ContactRegistrationController(http.Controller):
                     accounting_date=accounting_date,
                     note_from_api=note_from_api,
                     api_payload=api_payload,
+                    is_airport_trip=is_airport_trip,
+                    driver_type=driver_type,
+                    expense_amount=expense_amount,
                 )
                 if coupon_value>0:
                     # Wallet
@@ -1471,15 +1480,15 @@ class ContactRegistrationController(http.Controller):
                     delta = coupon_value
 
                     tx_vals = {
-                "card_id": card.id,
-                "description": coupon_description,
-                "issued": delta,
-                "used": 0.0,
-                "status": "posted",
-                "order_model": "account.move",
-                "order_id": move.id,
-                "transaction_date": accounting_date or fields.Datetime.now(),
-            }
+                        "card_id": card.id,
+                        "description": coupon_description,
+                        "issued": delta,
+                        "used": 0.0,
+                        "status": "posted",
+                        "order_model": "account.move",
+                        "order_id": move.id,
+                        "transaction_date": accounting_date or fields.Datetime.now(),
+                    }
                     tx = env["loyalty.history"].sudo().create(tx_vals)
 
                     balance_after = card.caram_get_posted_balance()

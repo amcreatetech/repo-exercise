@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_caram_loyalty_history_wizard_form" model="ir.ui.view">
+        <field name="name">caram.loyalty.history.wizard.form</field>
+        <field name="model">caram.loyalty.history.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Wallet Transaction">
+                <group>
+                    <field name="card_id" readonly="1"/>
+                    <field name="source_type"/>
+
+                    <field name="payment_id"
+                           invisible="source_type != 'payment'" required="source_type == 'payment'"/>
+                    <field name="invoice_id"
+                           invisible="source_type != 'invoice'" required="source_type == 'invoice'"/>
+                    <field name="credit_note_id"
+                           invisible="source_type != 'credit_note'" required="source_type == 'credit_note'"/>
+                </group>
+
+                <group>
+                    <field name="description"/>
+                    <field name="issued"/>
+                    <field name="status"/>
+                </group>
+
+                <group string="Extra">
+                    <field name="deposit_method"/>
+                    <field name="reference"/>
+                    <field name="bank"/>
+                    <field name="account_number"/>
+                </group>
+
+                <footer>
+                    <button string="Create" type="object" name="action_confirm" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_caram_loyalty_history_wizard" model="ir.actions.act_window">
+        <field name="name">Create Wallet Transaction</field>
+        <field name="res_model">caram.loyalty.history.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_card_id': active_id}</field>
+    </record>
+
+    <record id="view_loyalty_card_form_inherit_caram_wallet_tx" model="ir.ui.view">
+        <field name="name">loyalty.card.form.caram.wallet.tx</field>
+        <field name="model">loyalty.card</field>
+        <field name="inherit_id" ref="loyalty.loyalty_card_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <button name="%(action_caram_loyalty_history_wizard)d"
+                            type="action"
+                            string="Wallet Transaction"
+                            class="btn-primary"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+
+

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_caram_compensation_product_config_tree" model="ir.ui.view">
+        <field name="name">caram.compensation.product.config.tree</field>
+        <field name="model">caram.compensation.product.config</field>
+        <field name="arch" type="xml">
+            <list string="Compensation Products" editable="bottom">
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="type"/>
+                <field name="product_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_caram_compensation_product_config_form" model="ir.ui.view">
+        <field name="name">caram.compensation.product.config.form</field>
+        <field name="model">caram.compensation.product.config</field>
+        <field name="arch" type="xml">
+            <form string="Compensation Product">
+                <sheet>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="type"/>
+                        <field name="product_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_caram_compensation_product_config" model="ir.actions.act_window">
+        <field name="name">Compensation Products</field>
+        <field name="res_model">caram.compensation.product.config</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure which product to use for each compensation type
+            </p>
+        </field>
+    </record>
+
+</odoo>

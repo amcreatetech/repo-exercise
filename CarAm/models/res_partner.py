@@ -31,6 +31,12 @@ class ResPartner(models.Model):
         ('subscription', 'Subscription'),
     ], string='Billing Type')
 
+    driver_type = fields.Selection([
+        ('company', 'Company Driver'),
+        ('external', 'External Driver'),
+    ], string='Driver Type',
+       help='Company Driver uses a company-owned vehicle; External Driver does not.')
+
     wallet_balance = fields.Float(
         digits='Product Price',
         copy=False,

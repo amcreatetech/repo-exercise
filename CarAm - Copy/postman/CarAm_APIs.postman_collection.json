@@ -1,0 +1,227 @@
+{
+  "info": {
+    "_postman_id": "e84b5b23-0b4b-4f41-8e8a-0c5e4f8a34b9",
+    "name": "CarAm - Odoo APIs",
+    "description": "Postman collection for CarAm Odoo module endpoints under /api/*.\n\nAuth: create an Odoo API key, then set collection variable `api_token`.\nBase URL: set collection variable `odoo_base_url` (example: http://localhost:8069).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Contact",
+      "item": [
+        {
+          "name": "Register Contact",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sub_id\": \"SUB-0001\",\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"mobile\": \"+212600000000\",\n  \"city\": \"Casablanca\",\n  \"gender\": \"male\",\n  \"contact_type\": \"rider\",\n  \"coupon_value\": 0\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/register_contact",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "register_contact"]
+            }
+          }
+        },
+        {
+          "name": "Update Contact",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"mobile\": \"+212600000000\",\n  \"city\": \"Rabat\",\n  \"gender\": \"male\",\n  \"contact_type\": \"rider\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/update_contact",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "update_contact"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Balance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/get_balance",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "get_balance"]
+            },
+            "description": "Returns wallet balances from `loyalty.card` (field `points` as `balance`).\n\n- **Single user:** send `odoo_partner_id` → response `type: single_user`, `data: { user_id, name, balance }`.\n- **All riders / drivers:** send `\"type\": \"rider\"` or `\"driver\"` (omit `odoo_partner_id`) → `count` + `data` array with `type` on each row.\n- **All users:** send `{}` (no `odoo_partner_id`, no `type`).\n\nTip: change the raw body to `{}` or `{ \"type\": \"rider\" }` as needed."
+          }
+        },
+        {
+          "name": "Add Wallet Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"transaction_id\": \"TX-0001\",\n  \"payment_method_type\": \"bank\",\n  \"transaction_type\": \"bank_transfer\",\n  \"amount\": 100.0,\n  \"reference\": \"EXT-REF-001\",\n  \"bank\": \"BMCE\",\n  \"image_url\": \"https://example.com/proof.png\",\n  \"note\": \"Top-up\",\n  \"account_number\": \"0123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/add_wallet_transaction",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "add_wallet_transaction"]
+            }
+          }
+        },
+        {
+          "name": "Add Wallet Transaction (Salesperson)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"transaction_id\": \"TX-0002\",\n  \"payment_method_type\": \"salesperson\",\n  \"salesperson_id\": 45,\n  \"transaction_type\": \"bank_transfer\",\n  \"amount\": 100.0,\n  \"reference\": \"EXT-REF-002\",\n  \"bank\": \"BMCE\",\n  \"image_url\": \"https://example.com/proof.png\",\n  \"note\": \"Top-up via salesperson\",\n  \"account_number\": \"0123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/add_wallet_transaction",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "add_wallet_transaction"]
+            }
+          }
+        },
+        {
+          "name": "Wallet Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"amount\": 25.0,\n  \"transaction_id\": \"WD-0001\",\n  \"bank\": \"BMCE\",\n  \"account_number\": \"0123456789\",\n  \"note\": \"Withdraw request\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/wallet_withdraw",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "wallet_withdraw"]
+            }
+          }
+        },
+        {
+          "name": "Compensation (bonus/discount)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"type\": \"bonus\",\n  \"amount\": 10.0\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/compensation",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "compensation"]
+            }
+          }
+        },
+        {
+          "name": "Wallet Clearing (rider <-> driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_rider_id\": 111,\n  \"odoo_driver_id\": 222,\n  \"amount\": 15.0\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/wallet_clearing",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "wallet_clearing"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ride",
+      "item": [
+        {
+          "name": "Pay Ride",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ride_id\": \"RIDE-0001\",\n  \"fare_amount\": 45.0,\n  \"wallet_paid\": 20.0,\n  \"cash_paid\": 25.0,\n  \"commission_amount\": 0.0,\n  \"penalties\": [],\n  \"rider_id\": 111,\n  \"driver_id\": 222,\n  \"payment_mode\": \"wallet_cash\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/ride/pay",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "ride", "pay"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"odoo_partner_id\": 123,\n  \"caram_subscription_id\": \"SUBS-0001\",\n  \"subscription_type\": \"vip\",\n  \"Price\": 199.0,\n  \"start_date\": \"2026-03-01\",\n  \"end_date\": \"2026-04-01\"\n}"
+            },
+            "url": {
+              "raw": "{{odoo_base_url}}/api/create_subscription",
+              "host": ["{{odoo_base_url}}"],
+              "path": ["api", "create_subscription"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "odoo_base_url", "value": "http://localhost:8069", "type": "string" },
+    { "key": "api_token", "value": "PUT_YOUR_ODOO_API_KEY_HERE", "type": "string" }
+  ]
+}
+
+
