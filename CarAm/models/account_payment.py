@@ -167,8 +167,18 @@ class AccountPayment(models.Model):
         try:
             response = requests.post(api_url, json=payload, timeout=10, headers=self._get_caram_api_headers())
             response.raise_for_status()
+            self.message_post(
+                    body="✅ Connection to API successful.",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
             _logger.info(f"Cash collection request sent successfully for transaction {self.caram_transaction_id}")
         except requests.exceptions.HTTPError as e:
+            self.message_post(
+                    body=f"❌ Failed to send cash collection request to CarAm: {str(e)}",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
             raise UserError(f'Failed to send cash collection request to CarAm: {str(e)}')
     
     def _send_caram_status_update(self, status):
