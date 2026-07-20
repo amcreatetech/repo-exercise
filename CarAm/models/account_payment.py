@@ -194,6 +194,11 @@ class AccountPayment(models.Model):
             
             # Mark as synced
             self.sudo().write({'caram_status_synced': True})
+            self.message_post(
+                    body=f"✅ Status updated successfully on CarAm platform",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
             
             return {
                 'type': 'ir.actions.client',
@@ -206,6 +211,11 @@ class AccountPayment(models.Model):
                 }
             }
         except requests.exceptions.HTTPError as e:
+            self.message_post(
+                    body=f"❌ Failed to update status on CarAm: {str(e)}",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
             raise UserError(f'Failed to update status on CarAm: {str(e)}')
 
 
