@@ -62,9 +62,9 @@ class AccountPayment(models.Model):
         headers = {
             'Accept': 'application/json',
         }
-        token = self.env['ir.config_parameter'].sudo().get_param('caram.api.token')
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
+        API_SECRET_TOKEN = self.env['ir.config_parameter'].sudo().get_param('caram.api.token')
+        if API_SECRET_TOKEN:
+            headers['Authorization'] = f'Bearer {API_SECRET_TOKEN}'
         return headers
 
     def _prepare_caram_status_payload(self, status):
