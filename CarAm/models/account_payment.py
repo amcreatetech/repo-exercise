@@ -148,7 +148,29 @@ class AccountPayment(models.Model):
         return base64.b64encode(encrypted_bytes).decode()
 
                 
+    def _send_caram_cash_collection(self):
+        """Send cash collection request to CarAm platform."""
+        self.ensure_one()
 
+        api_url = self._get_caram_api_url().replace('change-transaction-status', 'cash-collection')
+        ttype = 'credit' if self.payment_type == 'inbound' else 'debit'
+        payload = {
+            
+                    'odoo_partner_id': self.partner_id.id,
+                    'type': ttype, #credit , debit
+                    'amount': self.amount,
+                    'date': self.payment_date.strftime('%Y-%m-%d'),
+                    'note': "Cash Collection Request from Odoo"+ self.memo if self.memo else "",
+                
+            }
+
+        try:
+            response = requests.post(api_url, json=payload, timeout=10, headers=self._get_caram_api_headers())
+            response.raise_for_status()
+            _logger.info(f"Cash collection request sent successfully for transaction {self.caram_transaction_id}")
+        except requests.exceptions.HTTPError as e:
+            raise UserError(f'Failed to send cash collection request to CarAm: {str(e)}')
+    
     def _send_caram_status_update(self, status):
         """Send status update to CarAm platform."""
         self.ensure_one()
@@ -185,6 +207,7 @@ class AccountPayment(models.Model):
             if move.caram_transaction_id:
                 try:
                     move._send_caram_status_update('confirm')
+                    move._send_caram_cash_collection()
                     transaction = self.env['loyalty.history'].sudo().search(
                         [('order_id', '=', move.id)],
                           limit=1
