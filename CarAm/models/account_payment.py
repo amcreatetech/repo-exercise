@@ -159,7 +159,7 @@ class AccountPayment(models.Model):
                     'odoo_partner_id': self.partner_id.id,
                     'type': ttype, #credit , debit
                     'amount': self.amount,
-                    'date': self.payment_date.strftime('%Y-%m-%d'),
+                    'date': self.date.strftime('%Y-%m-%d'),
                     'note': "Cash Collection Request from Odoo"+ self.memo if self.memo else "",
                 
             }
