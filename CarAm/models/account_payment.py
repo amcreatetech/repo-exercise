@@ -166,9 +166,10 @@ class AccountPayment(models.Model):
 
         try:
             response = requests.post(api_url, json=payload, timeout=10, headers=self._get_caram_api_headers())
+            
             response.raise_for_status()
             self.message_post(
-                    body="✅ Connection to API successful.",
+                    body="✅ Connection to API successful."+response.text,
                     message_type='notification',
                     subtype_xmlid='mail.mt_note',
                     )
