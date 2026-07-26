@@ -1,8 +1,11 @@
+import traceback
+
 from odoo import fields, http, _
 from odoo.http import request
 from odoo.exceptions import UserError
 import json
-
+import logging
+_logger = logging.getLogger(__name__)
 
 class ContactRegistrationController(http.Controller):
     
@@ -1518,4 +1521,6 @@ class ContactRegistrationController(http.Controller):
             return request.make_json_response(result, status=200)
 
         except Exception as e:
+            import traceback
+            _logger.error(traceback.format_exc())
             return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
