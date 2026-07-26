@@ -224,6 +224,11 @@ class AccountPayment(models.Model):
             if move.caram_transaction_id:
                 try:
                     move._send_caram_status_update('confirm')
+                    self.message_post(
+                    body=f"✅ Status updated successfully on CarAm platform",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
                     transaction = self.env['loyalty.history'].sudo().search(
                         [('order_id', '=', move.id)],
                           limit=1
@@ -256,6 +261,11 @@ class AccountPayment(models.Model):
                         card.write({'points': new_balance})
                     
                 except Exception as e:
+                    self.message_post(
+                    body=f"❌ Failed to update status on CarAm: {str(e)}",
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    )
                     _logger.warning(f"Failed to sync CarAm status on post: {str(e)}")
         return result
 
