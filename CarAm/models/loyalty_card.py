@@ -48,9 +48,9 @@ class LoyaltyCard(models.Model):
         invoice.action_post()
         return invoice
 
-    def _prepare_commission_invoice_line_vals(self, amount):
+    def _prepare_commission_invoice_line_vals(self, amount, company_id):
         self.ensure_one()
-        company_id = self.company_id.id
+        
         comp_type = "commission"
 
         config = self.env["caram.compensation.product.config"].sudo().search(
@@ -80,7 +80,7 @@ class LoyaltyCard(models.Model):
             "price_unit": amount,
         }
 
-    def _prepare_fine_invoice_line_vals(self, amount):
+    def _prepare_fine_invoice_line_vals(self, amount, company_id):
         self.ensure_one()
         company_id = self.company_id.id
         comp_type = "fine"
@@ -293,9 +293,9 @@ class LoyaltyCard(models.Model):
         if should_invoice:
             invoice_lines = []
             if commission_amount >= 0:
-                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount))
+                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount, self.company_id.id))
             if fine_amount > 0:
-                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount))
+                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, self.company_id.id))
             invoice = self._create_invoice_from_lines(
                 driver,
                 invoice_lines,
