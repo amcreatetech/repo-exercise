@@ -50,7 +50,26 @@ class LoyaltyCard(models.Model):
 
     def _prepare_commission_invoice_line_vals(self, amount):
         self.ensure_one()
-        commission_product = self.company_id.caram_commission_product_id
+        comp_type = "commission"
+
+        config = self.env["caram.compensation.product.config"].sudo().search(
+            [("company_id", "=", self.company_id), ("type", "=", comp_type)],
+            limit=1,
+        )
+        # إذا مالقيتش، دور على إعداد الأب (الشركة الأم)
+        if not config:
+            config = self.env["caram.compensation.product.config"].sudo().search(
+                [("company_id", "parent_of", self.company_id), ("type", "=", comp_type)],
+                limit=1,
+            )
+
+        if not config or not config.product_id:
+            raise UserError(_(
+                "Compensation product not configured for type '%s' on company id '%s'."
+            ) % (comp_type, self.company_id))
+
+        commission_product = config.product_id.with_company(self.company_id)        
+        #commission_product = self.company_id.caram_commission_product_id
         if not commission_product:
             raise UserError(_("Please set commission product in the settings !"))
         return {
@@ -62,7 +81,26 @@ class LoyaltyCard(models.Model):
 
     def _prepare_fine_invoice_line_vals(self, amount):
         self.ensure_one()
-        fine_product = self.company_id.caram_fine_product_id
+        comp_type = "fine"
+
+        config = self.env["caram.compensation.product.config"].sudo().search(
+            [("company_id", "=", self.company_id), ("type", "=", comp_type)],
+            limit=1,
+        )
+        # إذا مالقيتش، دور على إعداد الأب (الشركة الأم)
+        if not config:
+            config = self.env["caram.compensation.product.config"].sudo().search(
+                [("company_id", "parent_of", self.company_id), ("type", "=", comp_type)],
+                limit=1,
+            )
+
+        if not config or not config.product_id:
+            raise UserError(_(
+                "Compensation product not configured for type '%s' on company id '%s'."
+            ) % (comp_type, self.company_id))
+
+        fine_product = config.product_id.with_company(self.company_id)         
+        #fine_product = self.company_id.caram_fine_product_id
         if not fine_product:
             raise UserError(_("Please set fine product in the settings !"))
         return {

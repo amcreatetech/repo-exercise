@@ -21,6 +21,8 @@ class CaramCompensationProductConfig(models.Model):
             ("fees", "Fees"),
             ("discount", "Discount"),
             ("expense", "Expense"),
+            ("fine", "Fine"),
+            ("commission", "Commission"),
         ],
         required=True,
     )
