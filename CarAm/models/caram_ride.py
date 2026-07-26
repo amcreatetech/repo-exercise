@@ -183,8 +183,7 @@ class CaramRide(models.Model):
         self.ensure_one()
         return self.env["loyalty.card"].sudo().search(
             [
-                ("partner_id", "=", partner.id),
-                ("company_id", "=", self.company_id.id),
+                ("partner_id", "=", partner.id)
             ],
             limit=1,
         )
@@ -512,7 +511,7 @@ class CaramRide(models.Model):
                 float(expense_amount or 0.0),
                 accounting_date=doc_date,
             )
-            card = (self.env["loyalty.card"].sudo().search( [("partner_id", "=", self.driver_id.id), ("company_id", "=", self.company_id.id)],
+            card = (self.env["loyalty.card"].sudo().search( [("partner_id", "=", self.driver_id.id)],
                     limit=1,))
             if not card:
                 raise UserError(_("Wallet not found for driver."))

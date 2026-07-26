@@ -212,8 +212,7 @@ class ContactRegistrationController(http.Controller):
 
             # -------------------- Create Wallet --------------------
             program = env["loyalty.program"].sudo().search([
-                ("program_type", "=", "ewallet"),
-                ("company_id", "=", company_id),
+                ("program_type", "=", "ewallet")
             ], limit=1)
 
             if not program:
@@ -450,8 +449,7 @@ class ContactRegistrationController(http.Controller):
 
                 card = env["loyalty.card"].sudo().search(
                 [
-                    ("partner_id", "=", partner.id),
-                    ("company_id", "=", company_id),
+                    ("partner_id", "=", partner.id)
                 ],
                 limit=1,
             )
@@ -535,7 +533,7 @@ class ContactRegistrationController(http.Controller):
                     )
 
                 card = env["loyalty.card"].sudo().search(
-                    [("partner_id", "=", partner.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", partner.id)],
                     limit=1,
                 )
                 if not card:
@@ -973,7 +971,7 @@ class ContactRegistrationController(http.Controller):
                 env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", partner.id), ("company_id", "parent_of", company_id)],
+                    [("partner_id", "=", partner.id)],
                     limit=1,
                 )
             )
@@ -1285,7 +1283,7 @@ class ContactRegistrationController(http.Controller):
                 env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", rider.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", rider.id)],
                     limit=1,
                 )
             )
@@ -1293,7 +1291,7 @@ class ContactRegistrationController(http.Controller):
                 env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", driver.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", driver.id)],
                     limit=1,
                 )
             )
@@ -1467,8 +1465,7 @@ class ContactRegistrationController(http.Controller):
                 )
                 if coupon_value>0:
                     # Wallet
-                    card = (env["loyalty.card"].sudo().search( [("partner_id", "=", driver.id), ("company_id", "=", company_id)],
-                    limit=1,))
+                    card = (env["loyalty.card"].sudo().search( [("partner_id", "=", driver.id)], limit=1))
                     if not card:
                         return request.make_json_response(
                             {"status": 404, "message": "Wallet not found for this partner"}, status=404

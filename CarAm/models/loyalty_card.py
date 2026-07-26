@@ -383,7 +383,7 @@ class LoyaltyCard(models.Model):
                 self.env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", rider.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", rider.id)],
                     limit=1,
                 )
             )
@@ -391,7 +391,7 @@ class LoyaltyCard(models.Model):
                 self.env["loyalty.card"]
                 .sudo()
                 .search(
-                    [("partner_id", "=", driver.id), ("company_id", "=", company_id)],
+                    [("partner_id", "=", driver.id)],
                     limit=1,
                 )
             )
