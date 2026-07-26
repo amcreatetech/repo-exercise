@@ -185,7 +185,7 @@ class ContactRegistrationController(http.Controller):
             if mobile:
                 domain.append(('mobile', '=', mobile))
 
-            domain.append(('company_id', '=', company_id))
+            
             existing = env["res.partner"].sudo().search(domain, limit=1)
 
             if existing:
@@ -202,7 +202,7 @@ class ContactRegistrationController(http.Controller):
                     "gender": gender,
                     "contact_type": contact_type,
                     "billing_type": billing_type,
-                    "company_id": company_id,
+                    
                     "customer_rank": 1,
                     "type": "contact",
                     "user_id": user.id,
