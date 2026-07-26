@@ -82,7 +82,7 @@ class LoyaltyCard(models.Model):
 
     def _prepare_fine_invoice_line_vals(self, amount, company_id):
         self.ensure_one()
-        company_id = self.company_id.id
+        
         comp_type = "fine"
 
         config = self.env["caram.compensation.product.config"].sudo().search(
