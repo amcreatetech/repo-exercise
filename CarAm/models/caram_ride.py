@@ -114,8 +114,12 @@ class CaramRide(models.Model):
         if amount <= 0:
             raise UserError(_("amount must be greater than 0"))
 
-        rider_wallet_account = self.driver_id.property_account_receivable_id
-        driver_wallet_account = self.rider_id.property_account_receivable_id
+        rider_wallet_account = self.rider_id.with_company(
+            self.company_id.id
+        ).property_account_receivable_id
+        driver_wallet_account = self.driver_id.with_company(
+            self.company_id.id
+        ).property_account_receivable_id
         if not rider_wallet_account:
             raise UserError(_("Rider has no receivable account."))
         if not driver_wallet_account:
@@ -127,9 +131,17 @@ class CaramRide(models.Model):
                 raise UserError(_("Airport journal is not configured for this company."))
         else:
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-                [("type", "=", "general"), '|', ('company_id', '=', self.company_id.id), ('company_id', 'parent_of', self.company_id.id)],
+                [("type", "=", "general"), ("company_id", "=", self.company_id.id)],
                 limit=1,
             )
+            if not journal:
+                journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+                    [
+                        ("type", "=", "general"),
+                        ("company_id", "parent_of", self.company_id.id),
+                    ],
+                    limit=1,
+                )
         if not journal:
             raise UserError(_("No journal found to post CarAm wallet transfer entries."))
 
@@ -167,7 +179,15 @@ class CaramRide(models.Model):
         
 
     def _get_wallet_card(self, partner):
-        return self.env["loyalty.card"].sudo().search([("partner_id", "=", partner.id)], limit=1)
+        """Wallet card for this ride's company (invoices follow card.company_id)."""
+        self.ensure_one()
+        return self.env["loyalty.card"].sudo().search(
+            [
+                ("partner_id", "=", partner.id),
+                ("company_id", "=", self.company_id.id),
+            ],
+            limit=1,
+        )
 
     def _get_receivable_account(self, partner):
         account = partner.with_company(self.company_id.id).property_account_receivable_id
@@ -186,9 +206,12 @@ class CaramRide(models.Model):
     # ---------------------------
     def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0):
         self.ensure_one()
+        self = self.with_company(self.company_id.id).with_context(
+            allowed_company_ids=[self.company_id.id],
+            caram_is_airport_trip=is_airport_trip,
+        )
         if is_airport_trip and not self.company_id.caram_airport_journal_id:
             raise UserError(_("Airport journal is not configured for this company."))
-        self = self.with_context(caram_is_airport_trip=is_airport_trip)
         if self.state == "paid":
             raise UserError(_("Ride already paid."))
 

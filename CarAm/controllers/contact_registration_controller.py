@@ -6,16 +6,24 @@ import json
 
 class ContactRegistrationController(http.Controller):
     
-    def _get_env(self, user):
-      company = user.company_id
-      return request.env(
-        user=user,
-        context=dict(
-            request.env.context,
-            allowed_company_ids=[company.id],
-            company_id=company.id,
+    def _get_env(self, user, company_id=None):
+        """Build env forced to API/user company (company-dependent accounting)."""
+        if company_id:
+            company = request.env["res.company"].sudo().browse(int(company_id))
+            if not company.exists():
+                raise UserError("Invalid company_id")
+            if company not in user.company_ids:
+                raise UserError("User has no access to this company")
+        else:
+            company = user.company_id
+        return request.env(
+            user=user,
+            context=dict(
+                request.env.context,
+                allowed_company_ids=[company.id],
+                company_id=company.id,
+            ),
         )
-    )
 
     def _authenticate(self):
         """Validate Bearer Token and return the user"""
@@ -1362,8 +1370,6 @@ class ContactRegistrationController(http.Controller):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
-            env = self._get_env(user)
-            company_id = user.company_id.id
             fare_amount = float(payload.get("fare_amount"))
             ride_id = payload.get("ride_id")
             wallet_paid = payload.get("wallet_paid", 0.0)
@@ -1381,6 +1387,15 @@ class ContactRegistrationController(http.Controller):
             driver_type = payload.get("driver_type")
             expense_amount = payload.get("expense_amount", 0.0)
             api_payload = payload
+
+            if not payload.get("company_id"):
+                return request.make_json_response({"error": "company_id is required"}, status=400)
+            try:
+                company_id = int(payload.get("company_id"))
+            except (TypeError, ValueError):
+                return request.make_json_response({"error": "Invalid company_id"}, status=400)
+
+            env = self._get_env(user, company_id)
 
             if driver_type == 'external' and not expense_amount:
                 return request.make_json_response({"error": "expense_amount is required if driver_type is external"}, status=400)
@@ -1436,7 +1451,7 @@ class ContactRegistrationController(http.Controller):
                     }
                 )
             try:
-                result = ride.action_pay_ride(
+                result = ride.with_company(company_id).action_pay_ride(
                     fare_amount=fare_amount,
                     wallet_paid=wallet_paid,
                     cash_paid=cash_paid,
