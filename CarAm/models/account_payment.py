@@ -1,3 +1,5 @@
+from urllib import response
+
 from odoo import models, fields
 from odoo.exceptions import UserError
 from cryptography.fernet import Fernet
@@ -166,6 +168,8 @@ class AccountPayment(models.Model):
             response = requests.post(
                 api_url, json=payload, timeout=10, headers=self._get_caram_api_headers()
             )
+            _logger.error("Status: %s", response.status_code)
+            _logger.error("Response: %s", response.text)
             response.raise_for_status()
             self.message_post(
                     body="✅ Connection to API successful.",
