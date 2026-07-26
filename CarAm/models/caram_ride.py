@@ -65,6 +65,69 @@ class CaramRide(models.Model):
     paid_at = fields.Datetime(readonly=True)
 
 
+    def _create_expense_bill(self, driver, amount, company_id, accounting_date=None):
+        self.ensure_one()
+        amount = float(amount or 0.0)
+        comp_type = "expense"
+
+        config = self.env["caram.compensation.product.config"].sudo().search(
+            [("company_id", "=", company_id), ("type", "=", comp_type)],
+            limit=1,
+        )
+        # إذا مالقيتش، دور على إعداد الأب (الشركة الأم)
+        if not config:
+            config = self.env["caram.compensation.product.config"].sudo().search(
+                [("company_id", "parent_of", company_id), ("type", "=", comp_type)],
+                limit=1,
+            )
+
+        if not config or not config.product_id:
+            raise UserError(_(
+                "Compensation product not configured for type '%s' on company id '%s'."
+            ) % (comp_type, company_id))
+
+        product = config.product_id.with_company(company_id)
+
+        expense_account = (
+            product.property_account_expense_id
+            or product.categ_id.property_account_expense_categ_id
+        )
+        if not expense_account:
+            raise UserError(_("No expense account configured for compensation product."))
+
+        journal = self.env["account.journal"].sudo().with_company(company_id).search(
+            [("type", "=", "purchase"),
+            '|', ("company_id", "=", company_id), ("company_id", "parent_of", company_id)],
+            limit=1,
+        )
+        if not journal:
+            raise UserError(_("Purchase journal is not configured for this company."))
+
+        ref = f"Ride {self.ride_id} expense amount {amount} for external driver {driver.name}"
+        move_date = accounting_date or fields.Date.context_today(self)
+
+        move_vals = {
+            "move_type": "in_invoice",
+            "company_id": company_id,
+            "journal_id": journal.id,
+            "invoice_date": move_date,
+            "partner_id": driver.id,
+            "ref": ref,
+            "invoice_line_ids": [
+                (0, 0, {
+                    "name": ref,
+                    "product_id": product.id,
+                    "quantity": 1,
+                    "price_unit": amount,
+                    "account_id": expense_account.id,
+                }),
+            ],
+        }
+
+        bill = self.env["account.move"].sudo().with_company(company_id).create(move_vals)
+        bill.action_post()
+        return bill
+
     def _create_expense_journal_entry(self, driver, amount, accounting_date=None):
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -506,9 +569,10 @@ class CaramRide(models.Model):
             raise UserError(_("Invalid payment_mode"))
 
         if driver_type == 'external':
-            journal_entry = self._create_expense_journal_entry(
+            journal_entry = self._create_expense_bill(
                 self.driver_id,
                 float(expense_amount or 0.0),
+                company_id=self.company_id.id,
                 accounting_date=doc_date,
             )
             card = (self.env["loyalty.card"].sudo().search( [("partner_id", "=", self.driver_id.id)],
