@@ -172,7 +172,7 @@ class AccountPayment(models.Model):
             _logger.error("Response: %s", response.text)
             response.raise_for_status()
             self.message_post(
-                    body="✅ Connection to API successful.",
+                    body="✅ Connection to API successful."+ response.text,
                     message_type='notification',
                     subtype_xmlid='mail.mt_note',
                     )
