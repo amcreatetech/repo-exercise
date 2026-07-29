@@ -345,6 +345,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                company_id=company_id,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -358,6 +359,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
 
             rider_wallet_delta = 0.0
@@ -387,6 +389,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                company_id=company_id,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -400,6 +403,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
 
             # cash_paid > fare_amount => diff is deposited to rider wallet
@@ -418,6 +422,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                company_id=company_id,
             )
 
             history2 = driver_card.caram_addwallet(
@@ -459,6 +464,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                company_id=company_id,
             )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -472,6 +478,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
 
             rider_wallet_delta = -self.fare_amount
@@ -498,6 +505,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
                 history2 = driver_card.caram_addwallet(
                     wallet_paid,
@@ -554,6 +562,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
             if rider_penalty_amount > 0:
                 rider_card.caram_withdraw(
@@ -567,6 +576,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
 
             rider_wallet_delta = -wallet_paid

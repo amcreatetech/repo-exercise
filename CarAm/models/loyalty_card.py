@@ -459,6 +459,7 @@ class LoyaltyCard(models.Model):
                     should_create_invoice=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
                 driver_card.caram_addwallet(
                     base_amount,
@@ -481,6 +482,7 @@ class LoyaltyCard(models.Model):
                     should_create_invoice=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
                 rider_card.caram_addwallet(
                     base_amount,
