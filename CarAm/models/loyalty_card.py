@@ -363,9 +363,11 @@ class LoyaltyCard(models.Model):
 
             if self.env.context.get("caram_is_airport_trip"):
                 journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-                                            [("type", "=", "general"), ("expense_account_id", "!=", False)],
-                                            limit=1,
-                                        )
+                                        [("type", "=", "sale"), ("is_airport_journal", "!=", False),
+                                        '|', ('company_id', '=', self.company_id.id), 
+                                        ('company_id', 'parent_of', self.company_id.id)
+                                        ], limit=1
+                                    )
                 if not journal:
                     raise UserError(_("Airport journal is not configured for this company."))
             else:

@@ -97,12 +97,7 @@ class ResCompany(models.Model):
         help="General journal used to post wallet clearing entries for CarAm rides.",
     )
 
-    caram_airport_journal_id = fields.Many2one(
-        "account.journal",
-        string="CarAm Airport Journal",
-        domain="[('type', 'in', ('general', 'sale'))]",
-        help="Journal used to post all accounting entries for airport trips.",
-    )
+    
 
     caram_commission_product_id = fields.Many2one(
         "product.product",
@@ -183,10 +178,7 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
     )
 
-    caram_airport_journal_id = fields.Many2one(
-        related="company_id.caram_airport_journal_id",
-        readonly=False,
-    )
+
 
     caram_commission_product_id = fields.Many2one(
         related="company_id.caram_commission_product_id",
