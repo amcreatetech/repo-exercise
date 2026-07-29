@@ -168,7 +168,7 @@ class CaramRide(models.Model):
         return journal_entry
 
     def _create_journal_entry(
-        self, driver, rider, amount, accounting_date=None, note_from_api=False, api_payload=False
+        self, driver, rider, amount, accounting_date=None, note_from_api=False, api_payload=False , company_id=None
     ):
         """Create & post a journal entry transferring wallet amount rider -> driver.
 
@@ -180,10 +180,10 @@ class CaramRide(models.Model):
             raise UserError(_("amount must be greater than 0"))
 
         rider_wallet_account = self.rider_id.with_company(
-            self.company_id.id
+            company_id or self.company_id.id
         ).property_account_receivable_id
         driver_wallet_account = self.driver_id.with_company(
-            self.company_id.id
+            company_id or self.company_id.id
         ).property_account_receivable_id
         if not rider_wallet_account:
             raise UserError(_("Rider has no receivable account."))
@@ -194,8 +194,8 @@ class CaramRide(models.Model):
             
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
                                     [("type", "=", "sale"), ("is_airport_journal", "!=", False),
-                                    '|', ('company_id', '=', self.company_id.id), 
-                                    ('company_id', 'parent_of', self.company_id.id)
+                                    '|', ('company_id', '=', company_id or self.company_id.id), 
+                                    ('company_id', 'parent_of', company_id or self.company_id.id)
                                     ], limit=1
                                 )
             if not journal:
@@ -203,15 +203,15 @@ class CaramRide(models.Model):
         else:
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
                 [("type", "=", "general"),  
-            '|', ('company_id', '=', self.company_id.id), 
-            ('company_id', 'parent_of', self.company_id.id)],
+            '|', ('company_id', '=', company_id or self.company_id.id), 
+            ('company_id', 'parent_of', company_id or self.company_id.id)],
                 limit=1,
             )
             if not journal:
                 journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
                     [
                         ("type", "=", "general"),
-                        ("company_id", "parent_of", self.company_id.id),
+                        ("company_id", "parent_of", company_id or self.company_id.id),
                     ],
                     limit=1,
                 )
@@ -446,6 +446,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                company_id=company_id,
             )
             history1.sudo().write({
                 "order_model": "account.move",
@@ -495,6 +496,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    company_id=company_id,
                 )
                 history1 = rider_card.caram_withdraw(
                     wallet_paid,
