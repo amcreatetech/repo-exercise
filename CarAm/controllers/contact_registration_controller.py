@@ -1316,6 +1316,7 @@ class ContactRegistrationController(http.Controller):
                     should_create_invoice=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
                 driver_card.caram_addwallet(
                     base_amount,
@@ -1325,6 +1326,7 @@ class ContactRegistrationController(http.Controller):
                     should_create_payment=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
             else:
                 # driver.wallet -= amount_abs, rider.wallet += amount_abs
@@ -1338,6 +1340,7 @@ class ContactRegistrationController(http.Controller):
                     should_create_invoice=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
                 rider_card.caram_addwallet(
                     base_amount,
@@ -1347,6 +1350,7 @@ class ContactRegistrationController(http.Controller):
                     should_create_payment=False,
                     order_model="account.move",
                     order_id=move.id,
+                    company_id=company_id,
                 )
 
             response = {

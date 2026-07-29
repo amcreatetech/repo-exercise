@@ -182,6 +182,7 @@ class LoyaltyCard(models.Model):
         accounting_date=None,
         note_from_api=False,
         api_payload=False,
+        company_id=None,
     ):
         """Create an account.payment and optionally post it.
 
@@ -197,8 +198,8 @@ class LoyaltyCard(models.Model):
             [
                 ("wallet_type_id", "=", payment_method_type),
                 '|',
-                ('company_id', '=', self.company_id.id),
-                ('company_id', 'parent_of', self.company_id.id),
+                ('company_id', '=', company_id.id),
+                ('company_id', 'parent_of', company_id.id),
             ],
             limit=1,
         )
@@ -225,7 +226,7 @@ class LoyaltyCard(models.Model):
         payment = (
             self.env["account.payment"]
             .sudo()
-            .with_company(self.company_id.id)
+            .with_company(company_id.id)
             .create(payment_vals)
         )
         if payment and should_post:
@@ -282,6 +283,7 @@ class LoyaltyCard(models.Model):
         accounting_date=None,
         note_from_api=False,
         api_payload=False,
+        company_id=None,
     ): 
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -296,9 +298,9 @@ class LoyaltyCard(models.Model):
         if should_invoice:
             invoice_lines = []
             if commission_amount >= 0:
-                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount, self.company_id.id))
+                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount,company_id.id))
             if fine_amount > 0:
-                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, self.company_id.id))
+                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, company_id.id))
             invoice = self._create_invoice_from_lines(
                 driver,
                 invoice_lines,
@@ -517,6 +519,7 @@ class LoyaltyCard(models.Model):
         accounting_date=None,
         note_from_api=False,
         api_payload=False,
+        company_id=None,
     ):
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -536,6 +539,7 @@ class LoyaltyCard(models.Model):
                 accounting_date=accounting_date,
                 note_from_api=note_from_api,
                 api_payload=api_payload,
+                company_id=company_id,
             )
             if error:
                 raise UserError(error)
