@@ -17,6 +17,7 @@ class LoyaltyCard(models.Model):
         accounting_date=None,
         note_from_api=False,
         api_payload=False,
+        company_id=None,
     ):
         """Create & post an out_invoice for partner with provided invoice lines."""
         self.ensure_one()
@@ -29,7 +30,7 @@ class LoyaltyCard(models.Model):
         invoice = (
             self.env["account.move"]
             .sudo()
-            .with_company(self.company_id.id)
+            .with_company(company_id)
             .create(
                 {
                     "invoice_date": doc_date,
@@ -42,6 +43,7 @@ class LoyaltyCard(models.Model):
                     "is_from_api": True,
                     "note_from_api": note_from_api or False,
                     "api_payload": api_payload or False,
+                    "company_id": company_id,
                 }
             )
         )
@@ -238,9 +240,15 @@ class LoyaltyCard(models.Model):
         self.ensure_one()
         if self.env.context.get("caram_is_airport_trip"):
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-                                        [("type", "=", "general"), ("expense_account_id", "!=", False)],
-                                        limit=1,
-                                    )
+                        [("type", "=", "sale"), ("is_airport_journal", "!=", False),
+                        '|', ('company_id', '=', self.company_id.id), 
+                        ('company_id', 'parent_of', self.company_id.id)
+                        ], limit=1
+                    )
+            #journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+             #                           [("type", "=", "general"), ("expense_account_id", "!=", False)],
+              #                          limit=1,
+               #                     )
             if not journal:
                 raise UserError(_("Airport journal is not configured for this company."))
             return journal.id
@@ -307,6 +315,7 @@ class LoyaltyCard(models.Model):
                 accounting_date=accounting_date,
                 note_from_api=note_from_api,
                 api_payload=api_payload,
+                company_id=company_id,
             )
         else:
             invoice = None

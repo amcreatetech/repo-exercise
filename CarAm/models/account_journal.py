@@ -26,6 +26,12 @@ class AccountJournal(models.Model):
         help="Used to categorize journals for wallet transaction"
     )
     
+    is_airport_journal = fields.Boolean(
+        string='Airport Journal',
+        default=False,
+        help='Check this box if this journal is used for airport trips'
+    )
+
     journal_sub_type = fields.Selection([
         ('bank', 'Bank'),
         ('fund', 'Fund'),
