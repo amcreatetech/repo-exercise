@@ -1469,6 +1469,7 @@ class ContactRegistrationController(http.Controller):
                     is_airport_trip=is_airport_trip,
                     driver_type=driver_type,
                     expense_amount=expense_amount,
+                    company_id=company_id,
                 )
                 if coupon_value>0:
                     # Wallet

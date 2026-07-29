@@ -274,7 +274,7 @@ class CaramRide(models.Model):
     # ---------------------------
     # Main payment logic
     # ---------------------------
-    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0):
+    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0, company_id=None):
         self.ensure_one()
         self = self.with_company(self.company_id.id).with_context(
             allowed_company_ids=[self.company_id.id],
