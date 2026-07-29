@@ -236,7 +236,10 @@ class LoyaltyCard(models.Model):
     def _get_general_journal(self):
         self.ensure_one()
         if self.env.context.get("caram_is_airport_trip"):
-            journal = self.company_id.caram_airport_journal_id
+            journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+                                        [("type", "=", "general"), ("expense_account_id", "!=", False)],
+                                        limit=1,
+                                    )
             if not journal:
                 raise UserError(_("Airport journal is not configured for this company."))
             return journal.id
@@ -348,14 +351,19 @@ class LoyaltyCard(models.Model):
             driver_wallet_account = company.caram_driver_wallet_account_id
 
             if self.env.context.get("caram_is_airport_trip"):
-                journal = company.caram_airport_journal_id
+                journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+                                            [("type", "=", "general"), ("expense_account_id", "!=", False)],
+                                            limit=1,
+                                        )
                 if not journal:
                     raise UserError(_("Airport journal is not configured for this company."))
             else:
                 journal = company.caram_clearing_journal_id or self.env[
                     "account.journal"
                 ].sudo().search(
-                    [("company_id", "=", company_id), ("type", "=", "general")], limit=1
+                    [("type", "=", "general"), 
+            '|', ('company_id', '=', self.company_id.id), 
+            ('company_id', 'parent_of', self.company_id.id)], limit=1
                 )
             
 

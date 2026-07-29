@@ -143,15 +143,6 @@
                             </div>
 
                             <div class="row mt16">
-                                <label string="CarAm Airport Journal" for="caram_airport_journal_id"
-                                       class="col-lg-3 o_light_label"/>
-                                <div class="col-lg-12">
-                                    <field name="caram_airport_journal_id" class="o_light_label"
-                                           options="{'no_create': True, 'no_create_edit': True}"/>
-                                </div>
-                            </div>
-
-                            <div class="row mt16">
                                 <label string="Commission Product" for="caram_commission_product_id"
                                        class="col-lg-3 o_light_label"/>
                                 <div class="col-lg-12">

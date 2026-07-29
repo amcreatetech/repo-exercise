@@ -191,12 +191,18 @@ class CaramRide(models.Model):
             raise UserError(_("Driver has no receivable account."))
 
         if self.env.context.get("caram_is_airport_trip"):
-            journal = self.company_id.caram_airport_journal_id
+            
+            journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+                            [("type", "=", "general"), ("expense_account_id", "!=", False)],
+                            limit=1,
+                        )
             if not journal:
                 raise UserError(_("Airport journal is not configured for this company."))
         else:
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-                [("type", "=", "general"), ("company_id", "=", self.company_id.id)],
+                [("type", "=", "general"),  
+            '|', ('company_id', '=', self.company_id.id), 
+            ('company_id', 'parent_of', self.company_id.id)],
                 limit=1,
             )
             if not journal:
@@ -274,8 +280,7 @@ class CaramRide(models.Model):
             allowed_company_ids=[self.company_id.id],
             caram_is_airport_trip=is_airport_trip,
         )
-        if is_airport_trip and not self.company_id.caram_airport_journal_id:
-            raise UserError(_("Airport journal is not configured for this company."))
+        
         if self.state == "paid":
             raise UserError(_("Ride already paid."))
 
