@@ -198,8 +198,8 @@ class LoyaltyCard(models.Model):
             [
                 ("wallet_type_id", "=", payment_method_type),
                 '|',
-                ('company_id', '=', company_id.id),
-                ('company_id', 'parent_of', company_id.id),
+                ('company_id', '=', company_id),
+                ('company_id', 'parent_of', company_id),
             ],
             limit=1,
         )
@@ -298,9 +298,9 @@ class LoyaltyCard(models.Model):
         if should_invoice:
             invoice_lines = []
             if commission_amount >= 0:
-                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount,company_id.id))
+                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount,company_id))
             if fine_amount > 0:
-                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, company_id.id))
+                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, company_id))
             invoice = self._create_invoice_from_lines(
                 driver,
                 invoice_lines,
