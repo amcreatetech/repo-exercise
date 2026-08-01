@@ -192,14 +192,14 @@ class CaramRide(models.Model):
 
         if self.env.context.get("caram_is_airport_trip"):
             
-            journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+            journal = self.env["account.journal"].sudo().with_company(company_id).search(
                                     [("type", "=", "sale"), ("is_airport_journal", "!=", False),
                                     '|', ('company_id', '=', company_id or self.company_id.id), 
                                     ('company_id', 'parent_of', company_id or self.company_id.id)
                                     ], limit=1
                                 )
             if not journal:
-                raise UserError(_("Airport journal is not configured for this company."))
+                raise UserError(_("Airport journal is not configured for this company. create journal entry"+company_id))
         else:
             journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
                 [("type", "=", "general"),  

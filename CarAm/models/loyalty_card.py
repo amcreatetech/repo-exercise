@@ -250,7 +250,7 @@ class LoyaltyCard(models.Model):
               #                          limit=1,
                #                     )
             if not journal:
-                raise UserError(_("Airport journal is not configured for this company."))
+                raise UserError(_("Airport journal is not configured for this company. _get_general_journal"))
             return journal.id
         journal = self.company_id.caram_wallet_journal_id
         if journal:
@@ -358,20 +358,13 @@ class LoyaltyCard(models.Model):
             
 
             # Wallet accounts from company configuration
-            rider_wallet_account = company.caram_rider_wallets_account_id
-            driver_wallet_account = company.caram_driver_wallet_account_id
+            rider_wallet_account = rider.property_account_receivable_id
+            driver_wallet_account = driver.property_account_receivable_id
+            if not rider_wallet_account or not driver_wallet_account:
+                raise UserError(_("Wallet accounts are not configured for rider or driver."))
 
-            if self.env.context.get("caram_is_airport_trip"):
-                journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
-                                        [("type", "=", "sale"), ("is_airport_journal", "!=", False),
-                                        '|', ('company_id', '=', self.company_id.id), 
-                                        ('company_id', 'parent_of', self.company_id.id)
-                                        ], limit=1
-                                    )
-                if not journal:
-                    raise UserError(_("Airport journal is not configured for this company."))
-            else:
-                journal = company.caram_clearing_journal_id or self.env[
+            
+            journal = company.caram_clearing_journal_id or self.env[
                     "account.journal"
                 ].sudo().search(
                     [("type", "=", "general"), 
