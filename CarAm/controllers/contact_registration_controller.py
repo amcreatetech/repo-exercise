@@ -1198,8 +1198,8 @@ class ContactRegistrationController(http.Controller):
                 )
 
             # Wallet accounts from company configuration
-            rider_wallet_account = company.caram_rider_wallets_account_id
-            driver_wallet_account = company.caram_driver_wallet_account_id
+            rider_wallet_account = rider.property_account_receivable_id
+            driver_wallet_account = driver.property_account_receivable_id
             if not rider_wallet_account or not driver_wallet_account:
                 return request.make_json_response(
                     {
