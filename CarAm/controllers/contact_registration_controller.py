@@ -1116,6 +1116,7 @@ class ContactRegistrationController(http.Controller):
                     accounting_date=accounting_date,
                     note_from_api=note_from_api,
                     api_payload=api_payload,
+                    company_id= company_id,
                 )
 
             # -------------------- Wallet & loyalty history --------------------
