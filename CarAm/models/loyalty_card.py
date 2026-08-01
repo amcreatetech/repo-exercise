@@ -36,7 +36,7 @@ class LoyaltyCard(models.Model):
                     "invoice_date": doc_date,
                     "date": doc_date,
                     'invoice_date_due': doc_date,
-                    "journal_id": self._get_general_journal(),
+                    "journal_id": self._get_general_journal(company_id),
                     "move_type": "out_invoice",
                     "partner_id": partner_id.id,
                     "invoice_line_ids": [(0, 0, vals) for vals in invoice_line_vals_list],
@@ -236,13 +236,13 @@ class LoyaltyCard(models.Model):
 
         return payment, None
 
-    def _get_general_journal(self):
+    def _get_general_journal(self, company_id=None ):
         self.ensure_one()
         if self.env.context.get("caram_is_airport_trip"):
-            journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+            journal = self.env["account.journal"].sudo().with_company(company_id).search(
                         [("type", "=", "sale"), ("is_airport_journal", "!=", False),
-                        '|', ('company_id', '=', self.company_id.id), 
-                        ('company_id', 'parent_of', self.company_id.id)
+                        '|', ('company_id', '=', company_id), 
+                        ('company_id', 'parent_of', company_id)
                         ], limit=1
                     )
             #journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
