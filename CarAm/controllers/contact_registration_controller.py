@@ -638,7 +638,7 @@ class ContactRegistrationController(http.Controller):
 
 
             contact_type = partner.contact_type
-            bank_account, liability_account, error_response = self._get_wallet_accounts(env, company_id, contact_type)
+            bank_account, liability_account, error_response = self._get_wallet_accounts(env, 1, contact_type)
             if error_response:
                 return error_response
 
@@ -812,7 +812,7 @@ class ContactRegistrationController(http.Controller):
 
             user = self._authenticate()
             env = self._get_env(user)
-            company_id = user.company_id.id
+            company_id = payload.get("company_id")
 
             # -------------------- Extract data --------------------
             partner_id = payload.get("odoo_partner_id")
@@ -838,6 +838,9 @@ class ContactRegistrationController(http.Controller):
                 return request.make_json_response({"error": "amount is required and must be greater than 0"}, status=400)
             if not transaction_id:
                 return request.make_json_response({"error": "transaction_id is required"}, status=400)
+            if not company_id:
+                return request.make_json_response({"error": "company_id is required"}, status=400)
+            
 
             partner = env['res.partner'].sudo().browse(partner_id)
             if not partner:
@@ -864,7 +867,7 @@ class ContactRegistrationController(http.Controller):
             
             # -------------------- Create Journal Entry --------------------
             contact_type = partner.contact_type
-            bank_account, liability_account, error_response = self._get_wallet_accounts(env, company_id, contact_type, coupon_value=0)
+            bank_account, liability_account, error_response = self._get_wallet_accounts(env, 1, contact_type, coupon_value=0)
             if error_response:
                 return error_response
 
