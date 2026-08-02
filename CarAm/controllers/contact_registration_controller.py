@@ -732,6 +732,7 @@ class ContactRegistrationController(http.Controller):
                         accounting_date=accounting_date,
                         note_from_api=note_from_api,
                         api_payload=api_payload,
+                        company_id=company_id,
                     )
                     if move:
                         journal_transaction_id = move.caram_transaction_id
@@ -888,6 +889,7 @@ class ContactRegistrationController(http.Controller):
                     accounting_date=accounting_date,
                     note_from_api=note_from_api,
                     api_payload=api_payload,
+                    company_id = company_id
                 )
                 if error:
                     return request.make_json_response({"error": str(error)}, status=500)

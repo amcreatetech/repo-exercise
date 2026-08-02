@@ -228,7 +228,7 @@ class LoyaltyCard(models.Model):
         payment = (
             self.env["account.payment"]
             .sudo()
-            .with_company(company_id.id)
+            .with_company(company_id)
             .create(payment_vals)
         )
         if payment and should_post:
