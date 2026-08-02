@@ -591,7 +591,7 @@ class ContactRegistrationController(http.Controller):
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
             env = self._get_env(user)
-            company_id = user.company_id.id
+            company_id = payload.get("company_id") or user.company_id.id
 
             # -------------------- Extract Data --------------------
             odoo_partner_id = payload.get("odoo_partner_id")
@@ -612,6 +612,8 @@ class ContactRegistrationController(http.Controller):
             # -------------------- Validate required fields --------------------
             if not odoo_partner_id:
                 return request.make_json_response({"error": "odoo_partner_id is required"}, status=400)
+            if not company_id:
+                return request.make_json_response({"error": "company_id is required"}, status=400)
             if not transaction_id:
                 return request.make_json_response({"error": "transaction_id is required"}, status=400)
             if not transaction_type:
@@ -812,7 +814,7 @@ class ContactRegistrationController(http.Controller):
 
             user = self._authenticate()
             env = self._get_env(user)
-            company_id = payload.get("company_id")
+            company_id = payload.get("company_id") or user.company_id.id
 
             # -------------------- Extract data --------------------
             partner_id = payload.get("odoo_partner_id")
