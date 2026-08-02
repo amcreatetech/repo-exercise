@@ -842,7 +842,7 @@ class ContactRegistrationController(http.Controller):
             if not partner:
                 return request.make_json_response({"error": "Partner not found"}, status=404)
 
-            wallet = env['loyalty.card'].sudo().search([('partner_id', '=', partner.id), ('company_id', '=', company_id)], limit=1)
+            wallet = env['loyalty.card'].sudo().search([('partner_id', '=', partner.id)], limit=1)
             if not wallet:
                 return request.make_json_response({"error": "No wallet found for this partner"}, status=404)
 
