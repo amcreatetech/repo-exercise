@@ -257,10 +257,10 @@ class LoyaltyCard(models.Model):
         journal = self.company_id.caram_wallet_journal_id
         if journal:
             return journal.id
-        journal = self.env["account.journal"].sudo().with_company(self.company_id.id).search(
+        journal = self.env["account.journal"].sudo().with_company(company_id).search(
             [("type", "=", "sale"), 
-            '|', ('company_id', '=', self.company_id.id), 
-            ('company_id', 'parent_of', self.company_id.id)
+            '|', ('company_id', '=', company_id), 
+            ('company_id', 'parent_of', company_id)
             ], limit=1
         )
         if not journal:
