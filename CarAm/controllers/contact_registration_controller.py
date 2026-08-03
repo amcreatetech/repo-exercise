@@ -317,7 +317,7 @@ class ContactRegistrationController(http.Controller):
 
             user = self._authenticate()
             env = self._get_env(user)
-            company_id = user.company_id.id
+            
 
             # ------------------------------------------------------------------
             # Extract data
@@ -340,7 +340,7 @@ class ContactRegistrationController(http.Controller):
             # ------------------------------------------------------------------
             # Search for the contact
             # ------------------------------------------------------------------
-            domain = [('company_id', '=', company_id)]
+            domain = []
             if partner_id:
                 domain.append(('id', '=', partner_id))
             elif email:
