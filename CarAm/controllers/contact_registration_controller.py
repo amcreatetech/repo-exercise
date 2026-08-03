@@ -444,7 +444,7 @@ class ContactRegistrationController(http.Controller):
             if partner_pk:
                 partner = env["res.partner"].sudo().browse(partner_pk)
 
-                if not partner.exists() or partner.company_id.id != company_id:
+                if not partner.exists():
                     return request.make_json_response(
                     {"error": "Partner not found or does not belong to this company"},
                     status=404,
@@ -529,7 +529,7 @@ class ContactRegistrationController(http.Controller):
                     return request.make_json_response({"error": "Invalid odoo_partner_id"}, status=400)
 
                 partner = env["res.partner"].sudo().browse(partner_pk)
-                if not partner.exists() or partner.company_id.id != company_id:
+                if not partner.exists():
                     return request.make_json_response(
                         {"error": "Partner not found or does not belong to this company"},
                         status=404,
@@ -630,7 +630,7 @@ class ContactRegistrationController(http.Controller):
 
             # -------------------- Find Partner --------------------
             partner = env['res.partner'].sudo().browse(odoo_partner_id)
-            if not partner.exists() or partner.company_id.id != company_id:
+            if not partner.exists():
                 return request.make_json_response({"error": "Partner not found or does not belong to this company"}, status=404)
 
             # -------------------- Find Wallet --------------------
