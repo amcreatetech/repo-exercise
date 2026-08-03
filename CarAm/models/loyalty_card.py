@@ -225,6 +225,7 @@ class LoyaltyCard(models.Model):
             "is_from_api": True,
             "note_from_api": note_from_api or False,
             "api_payload": api_payload or False,
+            "company_id": company_id,
         }
 
         payment = (
