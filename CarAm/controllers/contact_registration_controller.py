@@ -858,6 +858,24 @@ class ContactRegistrationController(http.Controller):
                 return request.make_json_response({"error": "amount is required and must be greater than 0"}, status=400)
             if not transaction_id:
                 return request.make_json_response({"error": "transaction_id is required"}, status=400)
+            # -------------------- Idempotency check --------------------
+            existing_move = env['account.move'].sudo().search(
+                            [('caram_transaction_id', '=', transaction_id)], limit=1
+                        )
+            if existing_move:
+                return request.make_json_response(
+                                {
+                                    "status": "success",
+                                    "message": "Transaction already processed, ignoring duplicate",
+                                    "data": {
+                                        "journal_entry_id": existing_move.id,
+                                        "transaction_id": transaction_id,
+                                        "partner_id": odoo_partner_id,
+                                    },
+                                },
+                                status=200,                        
+                            )
+            
             if not company_id:
                 return request.make_json_response({"error": "company_id is required"}, status=400)
             
