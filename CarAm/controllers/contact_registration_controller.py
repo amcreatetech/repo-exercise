@@ -617,7 +617,7 @@ class ContactRegistrationController(http.Controller):
             if not transaction_id:
                 return request.make_json_response({"error": "transaction_id is required"}, status=400)
             # -------------------- Idempotency check --------------------
-            existing_move = env['account.move'].sudo().search(
+            existing_move = env['account.payment'].sudo().search(
                 [('caram_transaction_id', '=', transaction_id)], limit=1
             )
             if existing_move:
@@ -859,7 +859,7 @@ class ContactRegistrationController(http.Controller):
             if not transaction_id:
                 return request.make_json_response({"error": "transaction_id is required"}, status=400)
             # -------------------- Idempotency check --------------------
-            existing_move = env['account.move'].sudo().search(
+            existing_move = env['account.payment'].sudo().search(
                             [('caram_transaction_id', '=', transaction_id)], limit=1
                         )
             if existing_move:
