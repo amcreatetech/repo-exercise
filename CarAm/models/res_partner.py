@@ -94,6 +94,75 @@ class ResPartner(models.Model):
     def action_caram_get_wallet_balance(self):
         return self._send_caram_wallet_balance_update()
 
+    def action_caram_get_all_wallet_balance(self):
+        return self._send_caram_all_wallet_balance_update()
+
+    def _send_caram_all_wallet_balance_update(self):
+        """Fetch wallet balances for all records in self in a single API call,
+        instead of one call per record.
+
+        Response shape:
+            {
+                "data": [{"id": 128, "partner_id": 5524, "wallet_balance": 8504.77, ...}, ...],
+                "status": true, "message": "successfully", "code": 200
+            }
+        """
+        api_url = self._get_caram_all_wallet_api_url()
+        try:
+            response = requests.get(
+                api_url,
+                params={'ids': ','.join(str(r.id) for r in self)},
+                timeout=10,
+                headers=self._get_caram_api_headers(),
+            )
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise UserError(f'Failed to fetch wallet balance from CarAm: {str(e)}')
+
+        rows = response.json().get('data') or []
+        if not isinstance(rows, list):
+            raise UserError('Invalid API response from CarAm.')
+
+        balance_by_partner_id = {}
+        for row in rows:
+            partner_id = row.get('partner_id')
+            balance = row.get('wallet_balance')
+            if partner_id is None or balance is None:
+                continue
+            balance_by_partner_id[int(partner_id)] = round(float(balance), 2)
+
+        updated_ids = []
+        for record in self:
+            balance = balance_by_partner_id.get(record.id)
+            if balance is None:
+                continue
+            record.write({'wallet_balance': balance})
+            updated_ids.append(record.id)
+
+        if not updated_ids:
+            raise UserError('No wallet balances found in CarAm response.')
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Success',
+                'message': f'Balance updated for {len(updated_ids)} record(s).',
+                'type': 'success',
+                'sticky': False,
+            },
+        }
+
+
+    def _get_caram_all_wallet_api_url(self):
+        """Single bulk endpoint — no longer needs a per-record id in the path."""
+        base_url = self.env['ir.config_parameter'].sudo().get_param(
+            'caram.api.base.url',
+            'https://staging.caram.app',
+        ).rstrip('/')
+        return f'{base_url}/api/odoo/users/wallet-balances'
+    
+
     def _caram_apply_accounting_partner_accounts(self):
         """Set company-dependent AR/AP from CarAm settings when role is rider or driver."""
         for partner in self:
