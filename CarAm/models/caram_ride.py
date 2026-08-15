@@ -51,6 +51,8 @@ class CaramRide(models.Model):
     rider_id = fields.Many2one("res.partner", string="Rider", required=True, readonly=True)
     driver_id = fields.Many2one("res.partner", string="Driver", required=True, readonly=True)
 
+    has_wallet_entries = fields.Boolean(default=False, readonly=True)
+
     fare_amount = fields.Monetary(required=True, readonly=True)
     wallet_paid = fields.Monetary(default=0.0, readonly=True)
     cash_paid = fields.Monetary(default=0.0, readonly=True)
