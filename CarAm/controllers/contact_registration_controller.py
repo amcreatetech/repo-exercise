@@ -1414,8 +1414,8 @@ class ContactRegistrationController(http.Controller):
                 status=500,
             )
 
-    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
-    def pay_ride(self, **kw):
+    #@http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    def old_pay_ride(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
@@ -1559,6 +1559,190 @@ class ContactRegistrationController(http.Controller):
                     card.sudo().write({"points": balance_after})
 
             
+            except UserError as e:
+                msg = str(e)
+                if "Insufficient wallet balance" in msg:
+                    return request.make_json_response(
+                        {"status": "error", "code": "INSUFFICIENT_WALLET_BALANCE"}, status=409
+                    )
+                return request.make_json_response({"error": msg}, status=400)
+
+            return request.make_json_response(result, status=200)
+
+        except Exception as e:
+            import traceback
+            _logger.error(traceback.format_exc())
+            return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
+
+    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    def pay_ride(self, **kw):
+        try:
+            payload = json.loads(request.httprequest.data.decode("utf-8"))
+            user = self._authenticate()
+            fare_amount = float(payload.get("fare_amount"))
+            ride_id = payload.get("ride_id")
+            wallet_paid = payload.get("wallet_paid", 0.0)
+            coupon_value = payload.get("coupon_value", 0.0)
+            coupon_description = payload.get("coupon_description")
+            cash_paid = payload.get("cash_paid", 0.0)
+            commission_amount = payload.get("commission_amount", 0.0)
+            penalties = payload.get("penalties", []) or []
+            rider_id = payload.get("rider_id")
+            driver_id = payload.get("driver_id") or payload.get("driver")
+            payment_mode = payload.get("payment_mode")
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            is_airport_trip = payload.get("is_airport_trip", False)
+            driver_type = payload.get("driver_type")
+            expense_amount = payload.get("expense_amount", 0.0)
+            api_payload = payload
+
+            if not payload.get("company_id"):
+                return request.make_json_response({"error": "company_id is required"}, status=400)
+            try:
+                company_id = int(payload.get("company_id"))
+            except (TypeError, ValueError):
+                return request.make_json_response({"error": "Invalid company_id"}, status=400)
+
+            env = self._get_env(user, company_id)
+
+            # NOTE: removed the old hard error for
+            # `driver_type == 'external' and not expense_amount` -
+            # expense_amount == 0 is now a valid "no entries yet" case.
+
+            if not payment_mode:
+                return request.make_json_response({"error": "payment_mode is required"}, status=400)
+
+            if payment_mode not in ["cash_only", "cash_exceed", "wallet_paid", "wallet_cash"]:
+                return request.make_json_response({"error": "Invalid payment_mode"}, status=400)
+
+            if not ride_id:
+                return request.make_json_response({"error": "ride_id is required"}, status=400)
+
+            if fare_amount <= 0:
+                return request.make_json_response({"error": "fare_amount must be > 0"}, status=400)
+
+            if wallet_paid is None or float(wallet_paid) < 0:
+                return request.make_json_response({"error": "wallet_paid is required and must be >= 0"}, status=400)
+
+            if not rider_id:
+                return request.make_json_response({"error": "rider_id is required"}, status=400)
+            if not driver_id:
+                return request.make_json_response({"error": "driver_id is required"}, status=400)
+
+            # -------------------- Find Rider and Driver --------------------
+            rider = env["res.partner"].sudo().browse(rider_id)
+            driver = env["res.partner"].sudo().browse(driver_id)
+            if not rider.exists():
+                return request.make_json_response({"error": "Rider not found"}, status=404)
+            if not driver.exists():
+                return request.make_json_response({"error": "Driver not found"}, status=404)
+
+            # -------------------- Find or Create Ride --------------------
+            ride = env["caram.ride"].sudo().search(
+                [("ride_id", "=", ride_id), ("company_id", "=", company_id)], limit=1
+            )
+            if not ride:
+                ride = env["caram.ride"].sudo().with_company(company_id).create(
+                    {
+                        "ride_id": ride_id,
+                        "company_id": company_id,
+                        "rider_id": rider.id,
+                        "driver_id": driver.id,
+                        "fare_amount": fare_amount,
+                        "commission_amount": commission_amount,
+                        "wallet_paid": wallet_paid,
+                        "cash_paid": cash_paid,
+                        "paid_at": accounting_date or fields.Datetime.now(),
+                    }
+                )
+
+            # -------------------- Decide whether entries should be (re)created --------------------
+            has_expense = bool(expense_amount) and float(expense_amount) > 0
+
+            if ride.has_wallet_entries:
+                # Already booked previously - never duplicate entries for the same ride.
+                return request.make_json_response(
+                    {
+                        "status": "success",
+                        "message": "Ride already has entries, skipping duplicate creation",
+                        "data": {"ride_id": ride.id},
+                    },
+                    status=200,
+                )
+
+            if not has_expense:
+                # No expense to book yet (either a brand-new ride with expense_amount == 0,
+                # or an existing ride still waiting on its entries) - ride is saved, stop here.
+                return request.make_json_response(
+                    {
+                        "status": "success",
+                        "message": "Ride recorded without entries (expense_amount is 0)",
+                        "data": {"ride_id": ride.id, "has_wallet_entries": False},
+                    },
+                    status=200,
+                )
+
+            # From here on: has_expense is True and entries don't exist yet - create them now,
+            # whether this is a brand-new ride or a previously "entry-less" existing one.
+            try:
+                result = ride.with_company(company_id).action_pay_ride(
+                    fare_amount=fare_amount,
+                    wallet_paid=wallet_paid,
+                    cash_paid=cash_paid,
+                    commission_amount=commission_amount,
+                    penalties=penalties,
+                    payment_mode=payment_mode,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
+                    is_airport_trip=is_airport_trip,
+                    driver_type=driver_type,
+                    expense_amount=expense_amount,
+                    company_id=company_id,
+                )
+
+                if coupon_value > 0:
+                    card = env["loyalty.card"].sudo().search([("partner_id", "=", driver.id)], limit=1)
+                    if not card:
+                        return request.make_json_response(
+                            {"status": 404, "message": "Wallet not found for this partner"}, status=404
+                        )
+
+                    move = self.create_driver_coupon_credit_note(
+                        env,
+                        company_id,
+                        driver,
+                        coupon_value,
+                        coupon_description,
+                        accounting_date=accounting_date,
+                        note_from_api=note_from_api,
+                        api_payload=api_payload,
+                    )
+                    if not move:
+                        return request.make_json_response(
+                            {"status": 500, "message": "Failed to create welcome coupon credit note"},
+                            status=500,
+                        )
+
+                    balance_before = card.caram_get_posted_balance()
+                    tx_vals = {
+                        "card_id": card.id,
+                        "description": coupon_description,
+                        "issued": coupon_value,
+                        "used": 0.0,
+                        "status": "posted",
+                        "order_model": "account.move",
+                        "order_id": move.id,
+                        "transaction_date": accounting_date or fields.Datetime.now(),
+                    }
+                    tx = env["loyalty.history"].sudo().create(tx_vals)
+                    balance_after = card.caram_get_posted_balance()
+                    card.sudo().write({"points": balance_after})
+
+                # Mark this ride as having its entries created, so future calls don't redo it.
+                ride.sudo().write({"has_wallet_entries": True})
+
             except UserError as e:
                 msg = str(e)
                 if "Insufficient wallet balance" in msg:
