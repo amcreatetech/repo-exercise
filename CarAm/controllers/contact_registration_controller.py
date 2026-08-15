@@ -628,7 +628,7 @@ class ContactRegistrationController(http.Controller):
                         "data": {
                             "journal_entry_id": existing_move.id,
                             "transaction_id": transaction_id,
-                            "partner_id": existing_move.partner_id,
+                            "partner_id": existing_move.partner_id.id,
                         },
                     },
                     status=200,
@@ -870,7 +870,7 @@ class ContactRegistrationController(http.Controller):
                                     "data": {
                                         "journal_entry_id": existing_move.id,
                                         "transaction_id": transaction_id,
-                                        "partner_id": existing_move.partner_id,
+                                        "partner_id": existing_move.partner_id.id,
                                     },
                                 },
                                 status=200,                        
