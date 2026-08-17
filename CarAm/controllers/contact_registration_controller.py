@@ -1164,7 +1164,7 @@ class ContactRegistrationController(http.Controller):
 
             # -------------------- Wallet & loyalty history --------------------
             balance_before = card.caram_get_posted_balance()
-            delta = amount if comp_type in ("bonus", "driver_coupon", "rider_coupon") else -amount
+            delta = amount if comp_type in ("bonus", "driver_coupon", "rider_coupon","fees") else -amount
 
             tx_vals = {
                 "card_id": card.id,
