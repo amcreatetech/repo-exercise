@@ -1126,7 +1126,7 @@ class ContactRegistrationController(http.Controller):
                 journal_entry.action_post()
                 move = journal_entry
 
-            elif comp_type in ("bonus", "driver_coupon", "rider_coupon"):
+            elif comp_type in ("bonus", "driver_coupon", "rider_coupon","fees"):
                 move = self.create_driver_coupon_credit_note(
                     env,
                     company_id,
@@ -1144,23 +1144,23 @@ class ContactRegistrationController(http.Controller):
                         status=500,
                     )
 
-            else:
+            #else:
                 # discount / fees -> invoice entry using _create_invoice_from_lines
-                invoice_line_vals = {
-                    "product_id": product.id,
-                    "account_id": expense_account.id,
-                    "name": description,
-                    "quantity": 1,
-                    "price_unit": amount,
-                }
-                move = card._create_invoice_from_lines(
-                    partner,
-                    [invoice_line_vals],
-                    accounting_date=accounting_date,
-                    note_from_api=note_from_api,
-                    api_payload=api_payload,
-                    company_id= company_id,
-                )
+                #invoice_line_vals = {
+                    #"product_id": product.id,
+                    #"account_id": expense_account.id,
+                    #"name": description,
+                    #"quantity": 1,
+                    #"price_unit": amount,
+                #}
+                #move = card._create_invoice_from_lines(
+                    #partner,
+                    #[invoice_line_vals],
+                    #accounting_date=accounting_date,
+                    #note_from_api=note_from_api,
+                    #api_payload=api_payload,
+                    #company_id= company_id,
+                #)
 
             # -------------------- Wallet & loyalty history --------------------
             balance_before = card.caram_get_posted_balance()
@@ -1414,8 +1414,8 @@ class ContactRegistrationController(http.Controller):
                 status=500,
             )
 
-    #@http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
-    def old_pay_ride(self, **kw):
+    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    def pay_ride(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
@@ -1574,8 +1574,8 @@ class ContactRegistrationController(http.Controller):
             _logger.error(traceback.format_exc())
             return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
 
-    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
-    def pay_ride(self, **kw):
+    #@http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    def new_pay_ride(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
