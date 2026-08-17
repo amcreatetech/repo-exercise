@@ -623,7 +623,7 @@ class ContactRegistrationController(http.Controller):
             if existing_move:
                 return request.make_json_response(
                     {
-                        "status": "success",
+                        "status": "Error",
                         "message": "Transaction already processed, ignoring duplicate",
                         "data": {
                             "journal_entry_id": existing_move.id,
@@ -631,7 +631,7 @@ class ContactRegistrationController(http.Controller):
                             "partner_id": existing_move.partner_id.id,
                         },
                     },
-                    status=200,
+                    status=400,
                 )
 
             if not transaction_type:
@@ -865,7 +865,7 @@ class ContactRegistrationController(http.Controller):
             if existing_move:
                 return request.make_json_response(
                                 {
-                                    "status": "success",
+                                    "status": "Error",
                                     "message": "Transaction already processed, ignoring duplicate",
                                     "data": {
                                         "journal_entry_id": existing_move.id,
@@ -873,7 +873,7 @@ class ContactRegistrationController(http.Controller):
                                         "partner_id": existing_move.partner_id.id,
                                     },
                                 },
-                                status=200,                        
+                                status=400,                        
                             )
             
             if not company_id:
