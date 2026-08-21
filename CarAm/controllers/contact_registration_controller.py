@@ -1595,6 +1595,7 @@ class ContactRegistrationController(http.Controller):
             is_airport_trip = payload.get("is_airport_trip", False)
             driver_type = payload.get("driver_type")
             expense_amount = payload.get("expense_amount", 0.0)
+            create_entries = payload.get("create_entries", True)
             api_payload = payload
 
             if not payload.get("company_id"):
@@ -1658,7 +1659,7 @@ class ContactRegistrationController(http.Controller):
                 )
 
             # -------------------- Decide whether entries should be (re)created --------------------
-            has_expense = bool(expense_amount) and float(expense_amount) > 0
+            
 
             if ride.has_wallet_entries:
                 # Already booked previously - never duplicate entries for the same ride.
@@ -1671,19 +1672,19 @@ class ContactRegistrationController(http.Controller):
                     status=200,
                 )
 
-            if not has_expense:
+            if not create_entries:
                 # No expense to book yet (either a brand-new ride with expense_amount == 0,
                 # or an existing ride still waiting on its entries) - ride is saved, stop here.
                 return request.make_json_response(
                     {
                         "status": "success",
-                        "message": "Ride recorded without entries (expense_amount is 0)",
+                        "message": "Ride recorded without entries (create_entries is False)",
                         "data": {"ride_id": ride.id, "has_wallet_entries": False},
                     },
                     status=200,
                 )
 
-            # From here on: has_expense is True and entries don't exist yet - create them now,
+            # From here on: create_entries: is True and entries don't exist yet - create them now,
             # whether this is a brand-new ride or a previously "entry-less" existing one.
             try:
                 result = ride.with_company(company_id).action_pay_ride(
