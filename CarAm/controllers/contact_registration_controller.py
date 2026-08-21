@@ -1,8 +1,4 @@
 from datetime import datetime
-import traceback
-
-from torch import ceil
-
 from odoo import fields, http, _
 from odoo.http import request
 from odoo.exceptions import UserError
