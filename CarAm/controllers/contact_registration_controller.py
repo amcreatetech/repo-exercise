@@ -544,9 +544,7 @@ class ContactRegistrationController(http.Controller):
                 history = history.filtered(lambda x: x.create_date.date() >= from_date_parsed)
             if to_date_parsed:
                 history = history.filtered(lambda x: x.create_date.date() <= to_date_parsed)
-            history = history.filtered(
-                lambda x: x.issued > 0.0 or x.used > 0.0
-            )
+            
 
             total_lines = len(history)
 
@@ -558,7 +556,7 @@ class ContactRegistrationController(http.Controller):
                 "description": str(line.description),
                 "transaction_date": str(line.create_date)[:16],
                 "deposit": "{:.2f}".format(line.issued) if line.issued else "",
-                "withdraw": "{:.2f}".format(line.used) if line.used else "",
+                "withdraw": "{:.2f}".format(line.issued) if line.issued < 0 else line.used if line.used else "",
                 "status": str(line.status) if line.status else "",
             } for line in all_history]
 
