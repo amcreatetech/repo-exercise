@@ -1414,7 +1414,7 @@ class ContactRegistrationController(http.Controller):
                 status=500,
             )
 
-    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    #@http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
     def pay_ride(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
@@ -1574,7 +1574,7 @@ class ContactRegistrationController(http.Controller):
             _logger.error(traceback.format_exc())
             return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
 
-    #@http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
+    @http.route("/api/ride/pay", type="http", auth="none", methods=["POST"], csrf=False)
     def new_pay_ride(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
