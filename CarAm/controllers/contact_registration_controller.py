@@ -514,29 +514,27 @@ class ContactRegistrationController(http.Controller):
         )    
 
     @http.route('/api/wallets/account-activites', type='http', auth='none', methods=['GET'], csrf=False)
-    def get_wallet_transactions(self, user_id=None, company_id=None, from_date=None, to_date=None, sort_by=None, **kwargs):
+    def get_wallet_transactions(self, odoo_partner_id=None, company_id=None, from_date=None, to_date=None, sort_by=None, **kwargs):
         company_id = company_id or request.env.user.company_id.id
         try:
             user = self._authenticate()
 
-            if not user_id:
-                return request.make_json_response({"error": "user_id is required"}, status=400)
+            if not odoo_partner_id:
+                return request.make_json_response({"error": "odoo_partner_id is required"}, status=400)
 
             env = self._get_env(user, company_id)
 
             partner = env["res.partner"].sudo().search(
-                [("subID", "=", user_id)], limit=1
+                [("id", "=", odoo_partner_id)], limit=1
             )
             if not partner.exists():
-                return request.make_json_response({"error": "user_id not found"}, status=404)
+                return request.make_json_response({"error": "odoo_partner_id not found"}, status=404)
 
             card = env["loyalty.card"].sudo().search([("partner_id", "=", partner.id)], limit=1)
             if not card:
                 return request.make_json_response({"error": "No Wallet found"}, status=404)
 
-
             order = "id DESC" if sort_by == "desc" else "id ASC"
-            
 
             # -------------------- Date filters --------------------
             try:
@@ -551,14 +549,12 @@ class ContactRegistrationController(http.Controller):
             if to_date_parsed:
                 history = history.filtered(lambda x: x.create_date.date() <= to_date_parsed)
             history = history.filtered(
-                lambda x: x.issued > 0.0 or x.used > 0.0 or x.deposit_request > 0.0
-                or x.withdraw_request > 0.0 or x.cancelled_amount > 0.0
+                lambda x: x.issued > 0.0 or x.used > 0.0
             )
 
             total_lines = len(history)
-            total_pages = ceil(total_lines) if total_lines else 0
 
-            page_history = env["loyalty.history"].sudo().search(
+            all_history = env["loyalty.history"].sudo().search(
                 [("id", "in", history.ids)], order=order
             )
 
@@ -568,18 +564,16 @@ class ContactRegistrationController(http.Controller):
                 "deposit": "{:.2f}".format(line.issued) if line.issued else "",
                 "withdraw": "{:.2f}".format(line.used) if line.used else "",
                 "status": str(line.status) if line.status else "",
-            } for line in page_history]
+            } for line in all_history]
 
             return request.make_json_response(
                 {
                     "status": "success",
                     "message": "Wallet transactions fetched successfully",
                     "data": {
-                        "user_id": user_id,
+                        "odoo_partner_id": odoo_partner_id,
                         "wallet_transactions": data,
                         "pagination": {
-                            "current_page": page_number,
-                            "page_size": page_size,
                             "total_activites": total_lines
                         },
                     },
@@ -589,7 +583,7 @@ class ContactRegistrationController(http.Controller):
 
         except Exception as e:
             return request.make_json_response({"error": f"Failed to fetch wallet transactions: {str(e)}"}, status=500)
-    
+        
     def old_get_balance(self, **kw):
         """Return wallet balances from Loyality Card."""
         try:
