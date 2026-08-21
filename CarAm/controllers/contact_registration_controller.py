@@ -555,7 +555,7 @@ class ContactRegistrationController(http.Controller):
             data = [{
                 "description": str(line.description),
                 "transaction_date": str(line.create_date)[:16],
-                "deposit": "{:.2f}".format(line.issued) if line.issued else "",
+                "deposit": "{:.2f}".format(line.issued) if line.issued > 0 else "",
                 "withdraw": "{:.2f}".format(line.issued) if line.issued < 0 else line.used if line.used else "",
                 "status": str(line.status) if line.status else "",
             } for line in all_history]
