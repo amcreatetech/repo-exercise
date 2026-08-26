@@ -1651,7 +1651,7 @@ class ContactRegistrationController(http.Controller):
             ride_id = payload.get("ride_id")
             wallet_paid = payload.get("wallet_paid", 0.0)
             coupon_value = payload.get("coupon_value", 0.0)
-            coupon_description = payload.get("coupon_description")
+            coupon_description = payload.get("coupon_description", "")
             cash_paid = payload.get("cash_paid", 0.0)
             commission_amount = payload.get("commission_amount", 0.0)
             penalties = payload.get("penalties", []) or []
