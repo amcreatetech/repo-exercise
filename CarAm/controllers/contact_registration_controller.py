@@ -1647,7 +1647,7 @@ class ContactRegistrationController(http.Controller):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
-            fare_amount = float(payload.get("fare_amount"), 0.0)
+            fare_amount = float(payload.get("fare_amount", 0.0))
             ride_id = payload.get("ride_id")
             wallet_paid = payload.get("wallet_paid", 0.0)
             coupon_value = payload.get("coupon_value", 0.0)
