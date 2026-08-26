@@ -1826,3 +1826,152 @@ class ContactRegistrationController(http.Controller):
             import traceback
             _logger.error(traceback.format_exc())
             return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
+
+    @http.route("/api/update_currency_rate", type="http", auth="none", methods=["PUT"], csrf=False)
+    def update_currency_rate(self, **kw):
+
+        try:
+
+            payload = json.loads(request.httprequest.data.decode("utf-8"))
+
+            print("update_currency_rate payload:", payload)
+
+            user = self._authenticate()
+            env = self._get_env(user)
+
+            # ------------------------------------------------------------------
+            # Extract data
+            # ------------------------------------------------------------------
+            currency_code = payload.get("currency_code")
+            rate = payload.get("rate")
+            rate_date = payload.get("date")
+
+            # ------------------------------------------------------------------
+            # Validate required fields
+            # ------------------------------------------------------------------
+            if not currency_code:
+                return request.make_json_response(
+                    {
+                        "error": "currency_code is required"
+                    },
+                    status=400
+                )
+
+            if rate is None:
+                return request.make_json_response(
+                    {
+                        "error": "rate is required"
+                    },
+                    status=400
+                )
+
+            if not rate_date:
+                rate_date = fields.Date.today()
+
+            try:
+                rate = float(rate)
+            except (ValueError, TypeError):
+                return request.make_json_response(
+                    {
+                        "error": "rate must be a valid number"
+                    },
+                    status=400
+                )
+
+            if rate <= 0:
+                return request.make_json_response(
+                    {
+                        "error": "rate must be greater than zero"
+                    },
+                    status=400
+                )
+
+            # ------------------------------------------------------------------
+            # Find currency
+            # ------------------------------------------------------------------
+            currency = env['res.currency'].sudo().search(
+                [
+                    ('name', '=', currency_code.upper())
+                ],
+                limit=1
+            )
+
+            if not currency:
+                return request.make_json_response(
+                    {
+                        "error": "Currency not found",
+                        "currency_code": currency_code
+                    },
+                    status=404
+                )
+
+            # ------------------------------------------------------------------
+            # Check if rate already exists for this date/company
+            # ------------------------------------------------------------------
+            company = env.company
+
+            currency_rate = env['res.currency.rate'].sudo().search(
+                [
+                    ('currency_id', '=', currency.id),
+                    ('company_id', '=', company.id),
+                    ('name', '=', rate_date),
+                ],
+                limit=1
+            )
+
+            # ------------------------------------------------------------------
+            # Update existing rate
+            # ------------------------------------------------------------------
+            if currency_rate:
+
+                currency_rate.write({
+                    'inverse_company_rate': rate,
+                })
+
+                action = "updated"
+
+            # ------------------------------------------------------------------
+            # Create new rate
+            # ------------------------------------------------------------------
+            else:
+
+                currency_rate = env['res.currency.rate'].sudo().create({
+                    'currency_id': currency.id,
+                    'company_id': company.id,
+                    'name': rate_date,
+                    'inverse_company_rate': rate,
+                })
+
+                action = "created"
+
+            # ------------------------------------------------------------------
+            # Response
+            # ------------------------------------------------------------------
+            return request.make_json_response(
+                {
+                    "success": True,
+                    "message": "Currency rate %s successfully" % action,
+                    "data": {
+                        "currency_id": currency.id,
+                        "currency_code": currency.name,
+                        "rate": currency_rate.inverse_company_rate,
+                        "date": str(currency_rate.name),
+                        "company_id": company.id,
+                        "company_name": company.name,
+                        "currency_rate_id": currency_rate.id,
+                    }
+                },
+                status=200
+            )
+
+        except Exception as e:
+
+            print("update_currency_rate error:", str(e))
+
+            return request.make_json_response(
+                {
+                    "success": False,
+                    "error": str(e)
+                },
+                status=500
+            )
