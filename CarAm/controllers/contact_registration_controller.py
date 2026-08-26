@@ -1682,12 +1682,6 @@ class ContactRegistrationController(http.Controller):
             if not ride_id:
                 return request.make_json_response({"error": "ride_id is required"}, status=400)
 
-            if fare_amount <= 0:
-                return request.make_json_response({"error": "fare_amount must be > 0"}, status=400)
-
-            if wallet_paid is None or float(wallet_paid) < 0:
-                return request.make_json_response({"error": "wallet_paid is required and must be >= 0"}, status=400)
-
             if not rider_id:
                 return request.make_json_response({"error": "rider_id is required"}, status=400)
             if not driver_id:
@@ -1706,6 +1700,10 @@ class ContactRegistrationController(http.Controller):
                 [("ride_id", "=", ride_id), ("company_id", "=", company_id)], limit=1
             )
             if not ride:
+                if fare_amount <= 0:
+                    return request.make_json_response({"error": "fare_amount must be > 0"}, status=400)
+                if wallet_paid is None or float(wallet_paid) < 0:
+                    return request.make_json_response({"error": "wallet_paid is required and must be >= 0"}, status=400)
                 if not payment_mode:
                     return request.make_json_response({"error": "payment_mode is required"}, status=400)
 
