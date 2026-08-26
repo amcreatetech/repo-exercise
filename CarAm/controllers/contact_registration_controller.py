@@ -1666,10 +1666,8 @@ class ContactRegistrationController(http.Controller):
             create_entries = payload.get("create_entries", True)
             api_payload = payload
 
-            if not payload.get("company_id"):
-                return request.make_json_response({"error": "company_id is required"}, status=400)
             try:
-                company_id = int(payload.get("company_id"))
+                company_id = int(payload.get("company_id",1))
             except (TypeError, ValueError):
                 return request.make_json_response({"error": "Invalid company_id"}, status=400)
 
