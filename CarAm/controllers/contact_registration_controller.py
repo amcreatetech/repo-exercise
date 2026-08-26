@@ -1697,7 +1697,7 @@ class ContactRegistrationController(http.Controller):
 
             # -------------------- Find or Create Ride --------------------
             ride = env["caram.ride"].sudo().search(
-                [("ride_id", "=", ride_id), ("company_id", "=", company_id)], limit=1
+                [("ride_id", "=", ride_id)], limit=1
             )
             if not ride:
                 if fare_amount <= 0:
