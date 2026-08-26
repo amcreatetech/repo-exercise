@@ -1827,7 +1827,7 @@ class ContactRegistrationController(http.Controller):
             _logger.error(traceback.format_exc())
             return request.make_json_response({"error": f"Failed to pay ride: {str(e)}"}, status=500)
 
-    @http.route("/api/update_currency_rate", type="http", auth="none", methods=["PUT"], csrf=False)
+    @http.route("/api/update_currency_rate", type="http", auth="none", methods=["POST"], csrf=False)
     def update_currency_rate(self, **kw):
 
         try:
