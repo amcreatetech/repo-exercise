@@ -1777,7 +1777,7 @@ class ContactRegistrationController(http.Controller):
                     company_id=ride.company_id.id,
                 )
 
-                ride.sudo().write({"has_wallet_entries": True,"status": "paid"})
+                ride.sudo().write({"has_wallet_entries": True,"state": "paid"})
 
 
                 if ride.coupon_value > 0:
