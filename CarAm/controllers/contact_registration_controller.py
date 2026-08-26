@@ -1776,7 +1776,7 @@ class ContactRegistrationController(http.Controller):
                     is_airport_trip=ride.is_airport_trip,
                     driver_type=ride.driver_type,
                     expense_amount=ride.expense_amount,
-                    company_id=company_id,
+                    company_id=ride.company_id,
                 )
 
                 ride.sudo().write({"has_wallet_entries": True})

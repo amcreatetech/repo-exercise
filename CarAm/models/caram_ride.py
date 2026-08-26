@@ -64,12 +64,12 @@ class CaramRide(models.Model):
             ("wallet_paid", "Wallet Paid"),
             ("wallet_cash", "Wallet and Cash"),
         ],
-        readonly=True,
+        readonly=True, string='Payment Mode'
     )
     state = fields.Selection([("draft", "Draft"), ("paid", "Paid")], default="draft", index=True)
     paid_at = fields.Datetime(readonly=True)
     expense_amount = fields.Monetary(default=0.0, readonly=True)
-    driver_type = fields.Selection([("internal", "Internal"), ("external", "External")], default="internal", readonly=True)
+    driver_type = fields.Selection([("internal", "Internal"), ("external", "External")], default="internal", readonly=True, string='Driver Type')
     is_airport_trip = fields.Boolean(default=False, readonly=True)
     note_from_api = fields.Text(readonly=True)
     api_payload = fields.Text(readonly=True)
