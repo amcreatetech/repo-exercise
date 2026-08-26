@@ -1723,6 +1723,14 @@ class ContactRegistrationController(http.Controller):
                         "wallet_paid": wallet_paid,
                         "cash_paid": cash_paid,
                         "paid_at": accounting_date or fields.Datetime.now(),
+                        "expense_amount": expense_amount,
+                        "driver_type": driver_type,
+                        "payment_mode": payment_mode,
+                        "is_airport_trip": is_airport_trip,
+                        "note_from_api": note_from_api,
+                        "api_payload": api_payload,
+                        "coupon_value": coupon_value,
+                        "coupon_description": coupon_description,
                     }
                 )
 
@@ -1756,22 +1764,25 @@ class ContactRegistrationController(http.Controller):
             # whether this is a brand-new ride or a previously "entry-less" existing one.
             try:
                 result = ride.with_company(company_id).action_pay_ride(
-                    fare_amount=fare_amount,
-                    wallet_paid=wallet_paid,
-                    cash_paid=cash_paid,
-                    commission_amount=commission_amount,
+                    fare_amount=ride.fare_amount ,
+                    wallet_paid=ride.wallet_paid,
+                    cash_paid=ride.cash_paid,
+                    commission_amount=ride.commission_amount,
                     penalties=penalties,
-                    payment_mode=payment_mode,
-                    accounting_date=accounting_date,
-                    note_from_api=note_from_api,
-                    api_payload=api_payload,
-                    is_airport_trip=is_airport_trip,
-                    driver_type=driver_type,
-                    expense_amount=expense_amount,
+                    payment_mode=ride.payment_mode,
+                    accounting_date=ride.paid_at,
+                    note_from_api=ride.note_from_api,
+                    api_payload=ride.api_payload,
+                    is_airport_trip=ride.is_airport_trip,
+                    driver_type=ride.driver_type,
+                    expense_amount=ride.expense_amount,
                     company_id=company_id,
                 )
 
-                if coupon_value > 0:
+                ride.sudo().write({"has_wallet_entries": True})
+
+
+                if ride.coupon_value > 0:
                     card = env["loyalty.card"].sudo().search([("partner_id", "=", driver.id)], limit=1)
                     if not card:
                         return request.make_json_response(
@@ -1782,28 +1793,30 @@ class ContactRegistrationController(http.Controller):
                         env,
                         company_id,
                         driver,
-                        coupon_value,
-                        coupon_description,
-                        accounting_date=accounting_date,
-                        note_from_api=note_from_api,
-                        api_payload=api_payload,
+                        ride.coupon_value,
+                        ride.coupon_description,
+                        accounting_date=ride.paid_at,
+                        note_from_api=ride.note_from_api,
+                        api_payload=ride.api_payload,
                     )
+                    
                     if not move:
                         return request.make_json_response(
                             {"status": 500, "message": "Failed to create welcome coupon credit note"},
                             status=500,
                         )
+                    ride.sudo().write({"coupon_credit_note_id": move.id if move else False})
 
                     balance_before = card.caram_get_posted_balance()
                     tx_vals = {
                         "card_id": card.id,
-                        "description": coupon_description,
-                        "issued": coupon_value,
+                        "description": ride.coupon_description,
+                        "issued": ride.coupon_value,
                         "used": 0.0,
                         "status": "posted",
                         "order_model": "account.move",
                         "order_id": move.id,
-                        "transaction_date": accounting_date or fields.Datetime.now(),
+                        "transaction_date": ride.paid_at or fields.Datetime.now(),
                     }
                     tx = env["loyalty.history"].sudo().create(tx_vals)
                     balance_after = card.caram_get_posted_balance()

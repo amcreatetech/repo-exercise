@@ -40,6 +40,7 @@
                         <group>
                             <field name="fare_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                             <field name="paid_at" readonly="1"/>
+                            <field name="payment_mode"/>
                         </group>
                     </group>
 
@@ -49,9 +50,19 @@
                                 <group>
                                     <field name="wallet_paid" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     <field name="cash_paid" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="commission_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="expense_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="coupon_value" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="coupon_description"/>
                                 </group>
                                 <group>
-                                    <field name="commission_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                   
+                                    <field name="is_airport_trip" widget="boolean"/>
+                                    <field name="note_from_api"/>
+                                    <field name="api_payload"/>
+                                    <field name="driver_type"/>
+                                    <field name="has_wallet_entries"/>
+
                                 </group>
                             </group>
                         </page>
@@ -73,5 +84,3 @@
     </record>
 
 </odoo>
-
-

@@ -67,7 +67,14 @@ class CaramRide(models.Model):
     )
     state = fields.Selection([("draft", "Draft"), ("paid", "Paid")], default="draft", index=True)
     paid_at = fields.Datetime(readonly=True)
-
+    expense_amount = fields.Monetary(default=0.0, readonly=True)
+    driver_type = fields.Selection([("internal", "Internal"), ("external", "External")], default="internal", readonly=True)
+    is_airport_trip = fields.Boolean(default=False, readonly=True)
+    note_from_api = fields.Text(readonly=True)
+    api_payload = fields.Text(readonly=True)
+    coupon_value = fields.Monetary(default=0.0, readonly=True)
+    coupon_description = fields.Text(readonly=True)
+    coupon_credit_note_id = fields.Many2one("account.move", readonly=True)
 
     def _create_expense_bill(self, driver, amount, company_id, accounting_date=None):
         self.ensure_one()
