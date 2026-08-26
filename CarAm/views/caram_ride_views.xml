@@ -39,7 +39,8 @@
                         </group>
                         <group>
                             <field name="fare_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                            <field name="paid_at" readonly="1"/>
+                            <field name="paid_at"/>
+                            <field name="coupon_credit_note_id"/>
                             <field name="payment_mode"/>
                         </group>
                     </group>
