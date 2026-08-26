@@ -1647,7 +1647,7 @@ class ContactRegistrationController(http.Controller):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()
-            fare_amount = float(payload.get("fare_amount"))
+            fare_amount = float(payload.get("fare_amount"), 0.0)
             ride_id = payload.get("ride_id")
             wallet_paid = payload.get("wallet_paid", 0.0)
             coupon_value = payload.get("coupon_value", 0.0)
@@ -1679,11 +1679,7 @@ class ContactRegistrationController(http.Controller):
             # `driver_type == 'external' and not expense_amount` -
             # expense_amount == 0 is now a valid "no entries yet" case.
 
-            if not payment_mode:
-                return request.make_json_response({"error": "payment_mode is required"}, status=400)
 
-            if payment_mode not in ["cash_only", "cash_exceed", "wallet_paid", "wallet_cash"]:
-                return request.make_json_response({"error": "Invalid payment_mode"}, status=400)
 
             if not ride_id:
                 return request.make_json_response({"error": "ride_id is required"}, status=400)
@@ -1712,6 +1708,12 @@ class ContactRegistrationController(http.Controller):
                 [("ride_id", "=", ride_id), ("company_id", "=", company_id)], limit=1
             )
             if not ride:
+                if not payment_mode:
+                    return request.make_json_response({"error": "payment_mode is required"}, status=400)
+
+                if payment_mode not in ["cash_only", "cash_exceed", "wallet_paid", "wallet_cash"]  and create_entries == False:
+                    return request.make_json_response({"error": "Invalid payment_mode"}, status=400)
+                
                 ride = env["caram.ride"].sudo().with_company(company_id).create(
                     {
                         "ride_id": ride_id,
