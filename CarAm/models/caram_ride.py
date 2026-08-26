@@ -59,9 +59,10 @@ class CaramRide(models.Model):
     commission_amount = fields.Monetary(default=0.0, readonly=True)
     payment_mode = fields.Selection(
         [
-            ("cash", "Cash"),
-            ("wallet", "Wallet"),
-            ("mixed", "Mixed"),
+            ("cash_only", "Cash"),
+            ("cash_exceed", "Cash Exceed"),
+            ("wallet_paid", "Wallet Paid"),
+            ("wallet_cash", "Wallet and Cash"),
         ],
         readonly=True,
     )
