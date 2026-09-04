@@ -893,8 +893,181 @@ class ContactRegistrationController(http.Controller):
         except Exception as e:
             return request.make_json_response({"error": f"Failed to create wallet transaction: {str(e)}"}, status=500)
 
+
+    #new wallet_withdraw , added to support multi currency
     @http.route("/api/wallet_withdraw", type="http", auth="none", methods=["POST"], csrf=False)
     def wallet_withdraw(self, **kw):
+        try:
+            payload = json.loads(request.httprequest.data.decode("utf-8"))
+
+            user = self._authenticate()
+            env = self._get_env(user)
+            company_id = payload.get("company_id") or user.company_id.id
+
+            # -------------------- Extract data --------------------
+            partner_id = payload.get("odoo_partner_id")
+            amount = float(payload.get("amount", 0))
+            transaction_id = payload.get("transaction_id")
+            transaction_type = payload.get("transaction_type")
+            payment_method_type = payload.get("payment_method_type")
+            bank = payload.get("bank")
+            account_number = payload.get("account_number")
+            note = payload.get("note") or ""
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
+            currency_code = payload.get("currency") or payload.get("currency_id")
+
+            # -------------------- Validate required fields --------------------
+            if not transaction_type:
+                return request.make_json_response({"error": "transaction_type is required"}, status=400)
+            if transaction_type not in ["direct", "bank_transfer"]:
+                return request.make_json_response({"error": "Invalid transaction_type"}, status=400)
+            if not partner_id:
+                return request.make_json_response({"error": "odoo_partner_id is required"}, status=400)
+            if not amount or amount <= 0:
+                return request.make_json_response({"error": "amount is required and must be greater than 0"}, status=400)
+            if not transaction_id:
+                return request.make_json_response({"error": "transaction_id is required"}, status=400)
+            # -------------------- Idempotency check --------------------
+            existing_move = env['account.payment'].sudo().search(
+                            [('caram_transaction_id', '=', transaction_id)], limit=1
+                        )
+            if existing_move:
+                return request.make_json_response(
+                                {
+                                    "status": "Error",
+                                    "message": "Transaction already processed, ignoring duplicate",
+                                    "data": {
+                                        "journal_entry_id": existing_move.id,
+                                        "transaction_id": transaction_id,
+                                        "partner_id": existing_move.partner_id.id,
+                                    },
+                                },
+                                status=400,                        
+                            )
+            
+            if not company_id:
+                return request.make_json_response({"error": "company_id is required"}, status=400)
+
+            company = env['res.company'].sudo().browse(company_id)
+            company_currency = company.currency_id
+
+            # -------------------- Resolve currency --------------------
+            currency = company_currency
+            if currency_code:
+                currency = env['res.currency'].sudo().search(
+                    ['|', ('name', '=', currency_code), ('id', '=', currency_code)],
+                    limit=1,
+                )
+                if not currency:
+                    return request.make_json_response({"error": "Invalid currency"}, status=400)
+
+            partner = env['res.partner'].sudo().browse(partner_id)
+            if not partner:
+                return request.make_json_response({"error": "Partner not found"}, status=404)
+
+            wallet = env['loyalty.card'].sudo().search([('partner_id', '=', partner.id)], limit=1)
+            if not wallet:
+                return request.make_json_response({"error": "No wallet found for this partner"}, status=404)
+
+            net_amount = amount
+
+            # Convert to company currency for balance/points purposes.
+            # The payment/journal entry itself is created in `currency` below.
+            doc_date = accounting_date or fields.Date.context_today(wallet)
+            if currency != company_currency:
+                net_amount_company_currency = currency._convert(
+                    net_amount, company_currency, company, doc_date
+                )
+            else:
+                net_amount_company_currency = net_amount
+
+            # Calculate balance: sum of issued minus sum of used for posted records
+            posted_history = env['loyalty.history'].sudo().search([
+                ('card_id', '=', wallet.id), 
+                ('status', '=', 'posted')
+            ])
+            total_issued = sum(posted_history.mapped('issued') or [0.0])
+            total_used = sum(posted_history.mapped('used') or [0.0])
+            total_balance = total_issued - total_used
+            
+            # TODO 
+            # if net_amount_company_currency > total_balance:
+            #     return request.make_json_response({"error": "Insufficient wallet balance"}, status=409)
+            
+            # -------------------- Create Journal Entry --------------------
+            contact_type = partner.contact_type
+            bank_account, liability_account, error_response = self._get_wallet_accounts(env, 1, contact_type, coupon_value=0)
+            if error_response:
+                return error_response
+
+            move = None
+            if bank_account and liability_account:
+                ref = note
+                should_post = (transaction_type == "direct")
+                state = 'posted' if should_post else 'draft'
+                payment_method_type = payment_method_type
+                image_url = ''
+              
+                move, error = wallet._create_payment(
+                    partner,
+                    -amount,
+                    payment_method_type,
+                    ref,
+                    should_post=should_post,
+                    transaction_id=transaction_id,
+                    image_url=image_url,
+                    bank=bank,
+                    account_number=account_number,
+                    accounting_date=accounting_date,
+                    note_from_api=note_from_api,
+                    api_payload=api_payload,
+                    company_id=company_id,
+                    currency_id=currency.id,
+                )
+                if error:
+                    return request.make_json_response({"error": str(error)}, status=500)
+            
+            transaction_vals = {
+                "card_id": wallet.id,
+                "description": f"Wallet withdraw. {note}",
+                "issued": -net_amount_company_currency,
+                "status": state,
+            }
+            
+            # Link to journal entry if created, otherwise link to partner
+            if move:
+                transaction_vals.update({
+                    "order_model": "account.payment",
+                    "order_id": move.id,
+                })
+            else:
+                transaction_vals.update({
+                    "order_model": "res.partner",
+                    "order_id": partner.id,
+                })
+            
+            transaction = env['loyalty.history'].sudo().create(transaction_vals)
+            balance_after = total_balance - net_amount_company_currency
+            
+            # -------------------- Update Card Points --------------------
+            wallet.sudo().write({"points": balance_after})
+
+            data = {
+                "transaction_id": transaction.id if transaction else 0,
+                "net_amount": net_amount,
+                "currency": currency.name,
+                "balance_after": balance_after
+            }
+
+            return request.make_json_response({"status": "success", "message": "Withdrawal transaction created successfully", "data": data}, status=201)
+
+        except Exception as e:
+            return request.make_json_response({"error": f"Failed to create withdrawal transaction: {str(e)}"}, status=500)
+        
+    #@http.route("/api/wallet_withdraw", type="http", auth="none", methods=["POST"], csrf=False)
+    def old_wallet_withdraw(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
 

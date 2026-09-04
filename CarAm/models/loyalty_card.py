@@ -174,6 +174,7 @@ class LoyaltyCard(models.Model):
         credit_note.action_post()
         return credit_note
 
+    #feda edit - add currency to _create_payment method to support multi currency
     def _create_payment(
         self,
         partner,
@@ -190,6 +191,7 @@ class LoyaltyCard(models.Model):
         note_from_api=False,
         api_payload=False,
         company_id=None,
+        currency_id=None,
     ):
         """Create an account.payment and optionally post it.
 
@@ -215,11 +217,14 @@ class LoyaltyCard(models.Model):
         if not journal:
             return None, _("No journal found for %s") % (payment_method_type,)
 
+        currency = currency_id or journal.currency_id.id or self.env["res.company"].sudo().browse(company_id).currency_id.id
+
         payment_vals = {
             "payment_type": "inbound" if amount > 0 else "outbound",
             "partner_id": partner.id,
             "partner_type": "customer",
             "amount": abs(amount),
+            "currency_id": currency,
             "journal_id": journal.id,
             "date": accounting_date or fields.Date.context_today(self),
             "memo": ref,
@@ -243,7 +248,7 @@ class LoyaltyCard(models.Model):
             payment.action_post()
 
         return payment, None
-
+    
     def _get_general_journal(self, company_id=None ):
         self.ensure_one()
         if self.env.context.get("caram_is_airport_trip"):
