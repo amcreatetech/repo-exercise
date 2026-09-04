@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 class LoyaltyCard(models.Model):
     _inherit = "loyalty.card"
 
-
+    #edit by feda  - add currency method to support multi currency
     def _create_invoice_from_lines(
         self,
         partner_id,
@@ -18,6 +18,7 @@ class LoyaltyCard(models.Model):
         note_from_api=False,
         api_payload=False,
         company_id=None,
+        currency_id=None,
     ):
         """Create & post an out_invoice for partner with provided invoice lines."""
         self.ensure_one()
@@ -27,6 +28,9 @@ class LoyaltyCard(models.Model):
             raise UserError(_("Missing invoice lines."))
 
         doc_date = accounting_date or fields.Date.context_today(self)
+        company = self.env["res.company"].browse(company_id) if company_id else self.env.company
+        currency = currency_id or company.currency_id.id
+
         invoice = (
             self.env["account.move"]
             .sudo()
@@ -39,6 +43,7 @@ class LoyaltyCard(models.Model):
                     "journal_id": self._get_general_journal(company_id),
                     "move_type": "out_invoice",
                     "partner_id": partner_id.id,
+                    "currency_id": currency,
                     "invoice_line_ids": [(0, 0, vals) for vals in invoice_line_vals_list],
                     "is_from_api": True,
                     "note_from_api": note_from_api or False,
@@ -279,7 +284,7 @@ class LoyaltyCard(models.Model):
       
         return total_issued - total_used
 
-    def caram_withdraw(
+    def old_caram_withdraw(
         self,
         amount,
         commission_amount=0.0,
@@ -295,6 +300,7 @@ class LoyaltyCard(models.Model):
         note_from_api=False,
         api_payload=False,
         company_id=None,
+        
     ): 
         self.ensure_one()
         amount = float(amount or 0.0)
@@ -344,6 +350,91 @@ class LoyaltyCard(models.Model):
         self.sudo().write({"points": balance_after})
         return tx
 
+    #feda edit - add currency to caram_withdraw method to support multi currency
+    def caram_withdraw(
+        self,
+        amount,
+        commission_amount=0.0,
+        fine_amount=0.0,
+        *,
+        description="",
+        status="posted",
+        driver=None,
+        should_create_invoice=True,
+        order_model=None,
+        order_id=None,
+        accounting_date=None,
+        note_from_api=False,
+        api_payload=False,
+        company_id=None,
+        currency_id=None,
+    ):
+        self.ensure_one()
+        amount = float(amount or 0.0)
+        commission_amount = float(commission_amount or 0.0)
+        fine_amount = float(fine_amount or 0.0)
+        #if amount <= 0:
+            #raise UserError(_("amount must be greater than 0"))
+
+        company = self.env["res.company"].browse(company_id) if company_id else self.env.company
+        company_currency = company.currency_id
+        currency = self.env["res.currency"].browse(currency_id) if currency_id else company_currency
+
+        doc_date = accounting_date or fields.Date.context_today(self)
+
+        # Convert the withdrawal amount into company currency for balance/points purposes.
+        # Invoice lines/amounts stay in `currency` untouched.
+        if currency != company_currency:
+            amount_company_currency = currency._convert(
+                amount, company_currency, company, doc_date
+            )
+        else:
+            amount_company_currency = amount
+
+        balance_before = self.caram_get_posted_balance()
+
+        should_invoice = should_create_invoice and (commission_amount >= 0 or fine_amount > 0)
+        if should_invoice:
+            invoice_lines = []
+            if commission_amount >= 0:
+                invoice_lines.append(self._prepare_commission_invoice_line_vals(commission_amount, company_id))
+            if fine_amount > 0:
+                invoice_lines.append(self._prepare_fine_invoice_line_vals(fine_amount, company_id))
+            invoice = self._create_invoice_from_lines(
+                driver,
+                invoice_lines,
+                accounting_date=accounting_date,
+                note_from_api=note_from_api,
+                api_payload=api_payload,
+                company_id=company_id,
+                currency_id=currency.id,
+            )
+        else:
+            invoice = None
+
+        tx = (
+            self.env["loyalty.history"]
+            .sudo()
+            .create(
+                {
+                    "card_id": self.id,
+                    "description": description or "",
+                    "issued": -amount_company_currency,
+                    "used": 0.0,
+                    "status": status or "posted",
+                    "order_model": "account.move" if invoice else order_model,
+                    "order_id": invoice.id if invoice else order_id,
+                }
+            )
+        )
+
+        balance_after = (
+            self.caram_get_posted_balance()
+            if (status or "posted") == "posted"
+            else (balance_before - amount_company_currency)
+        )
+        self.sudo().write({"points": balance_after})
+        return tx
     #feda edit - method to clear wallet between rider and driver in case of cash exceed payment or refunds
     def caram_wallet_clearing(self, 
         amount,
