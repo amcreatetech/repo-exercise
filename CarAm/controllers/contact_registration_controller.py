@@ -653,8 +653,294 @@ class ContactRegistrationController(http.Controller):
         except Exception as e:
             return request.make_json_response({"error": str(e)}, status=500)
 
+    #feda edit - add currency support and salesperson wallet top-up support
     @http.route("/api/add_wallet_transaction", type="http", auth="none", methods=["POST"], csrf=False)
     def add_wallet_transaction(self, **kw):
+        try:
+            payload = json.loads(request.httprequest.data.decode("utf-8"))
+            user = self._authenticate()
+            env = self._get_env(user)
+            company_id = payload.get("company_id") or user.company_id.id
+
+            # -------------------- Extract Data --------------------
+            odoo_partner_id = payload.get("odoo_partner_id")
+            transaction_id = payload.get("transaction_id")
+            payment_method_type = payload.get("payment_method_type")
+            salesperson_id = payload.get("salesperson_id")
+            transaction_type = payload.get("transaction_type")
+            amount = payload.get("amount") 
+            reference = payload.get("reference")
+            bank = payload.get("bank")
+            image_url = payload.get("image_url") or payload.get("Image_url")
+            note = payload.get("note")
+            account_number = payload.get("account_number")
+            accounting_date = payload.get("date") or False
+            note_from_api = payload.get("note_from_api") or False
+            api_payload = payload
+            currency_code = payload.get("currency") or payload.get("currency_id")
+
+            # -------------------- Validate required fields --------------------
+            if not odoo_partner_id:
+                return request.make_json_response({"error": "odoo_partner_id is required"}, status=400)
+            if not company_id:
+                return request.make_json_response({"error": "company_id is required"}, status=400)
+            if not transaction_id:
+                return request.make_json_response({"error": "transaction_id is required"}, status=400)
+            # -------------------- Idempotency check --------------------
+            existing_move = env['account.payment'].sudo().search(
+                [('caram_transaction_id', '=', transaction_id)], limit=1
+            )
+            if existing_move:
+                return request.make_json_response(
+                    {
+                        "status": "Error",
+                        "message": "Transaction already processed, ignoring duplicate",
+                        "data": {
+                            "journal_entry_id": existing_move.id,
+                            "transaction_id": transaction_id,
+                            "partner_id": existing_move.partner_id.id,
+                        },
+                    },
+                    status=400,
+                )
+
+            if not transaction_type:
+                return request.make_json_response({"error": "transaction_type is required"}, status=400)
+            if transaction_type not in ["direct", "bank_transfer"]:
+                return request.make_json_response({"error": "Invalid transaction_type"}, status=400)
+            if not amount or amount <= 0:
+                return request.make_json_response({"error": "amount is required and must be greater than 0"}, status=400)
+            if payment_method_type == "salesperson" and not salesperson_id:
+                return request.make_json_response(
+                    {"error": "salesperson_id is required for payment_method_type = 'salesperson'"},
+                    status=400,
+                )
+
+            company = env['res.company'].sudo().browse(company_id)
+            company_currency = company.currency_id
+
+            # -------------------- Resolve currency --------------------
+            currency = company_currency
+            if currency_code:
+                currency = env['res.currency'].sudo().search(
+                    ['|', ('name', '=', currency_code), ('id', '=', currency_code)],
+                    limit=1,
+                )
+                if not currency:
+                    return request.make_json_response({"error": "Invalid currency"}, status=400)
+
+            # -------------------- Find Partner --------------------
+            partner = env['res.partner'].sudo().browse(odoo_partner_id)
+            if not partner.exists():
+                return request.make_json_response({"error": "Partner not found or does not belong to this company"}, status=404)
+
+            # -------------------- Find Wallet --------------------
+            wallet = env['loyalty.card'].sudo().search([('partner_id', '=', partner.id)], limit=1)
+            if not wallet:
+                return request.make_json_response({"error": "Wallet not found for this partner"}, status=404)
+
+
+            contact_type = partner.contact_type
+            bank_account, liability_account, error_response = self._get_wallet_accounts(env, 1, contact_type)
+            if error_response:
+                return error_response
+
+            move = None
+            journal_transaction_id = None
+            move_credit = None
+
+            doc_date = accounting_date or fields.Date.context_today(wallet)
+
+            if bank_account and liability_account:
+                ref = note
+                should_post = (transaction_type == "direct")
+                state = 'posted' if should_post else 'draft'
+              
+                if payment_method_type == 'points':
+                    move_credit = wallet.create_points_credit_note(
+                        env,
+                        company_id,
+                        partner,
+                        amount,
+                        accounting_date=accounting_date,
+                        note_from_api=note_from_api,
+                        api_payload=api_payload,
+                        currency_id=currency.id,
+                    )
+                    
+                elif payment_method_type == 'salesperson':
+                    salesperson = env['res.partner'].sudo().browse(salesperson_id)
+                    if not salesperson.exists():
+                        return request.make_json_response(
+                            {"error": "Salesperson not found or does not belong to this company"},
+                            status=404,
+                        )
+
+                    wallet_receivable = partner.with_company(company_id).property_account_receivable_id
+                    if not wallet_receivable:
+                        return request.make_json_response(
+                            {"error": "Wallet partner has no receivable account configured"},
+                            status=500,
+                        )
+
+                    journal = env['account.journal'].sudo().with_company(company_id).search(
+                        [("wallet_type_id", "=", payment_method_type), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
+                        limit=1,
+                    )
+
+                    if not journal:
+                        return request.make_json_response(
+                            {"error": "No general journal found to post wallet salesperson entries"},
+                            status=500,
+                        )
+
+                    # For manual journal entries, debit/credit must be in company currency.
+                    # If a foreign currency was requested, convert for debit/credit and
+                    # record the original amount via amount_currency + currency_id on the lines.
+                    if currency != company_currency:
+                        amount_company_currency = currency._convert(
+                            amount, company_currency, company, doc_date
+                        )
+                    else:
+                        amount_company_currency = amount
+
+                    line_currency_vals = {
+                        'currency_id': currency.id,
+                        'amount_currency': amount if currency != company_currency else 0.0,
+                    } if currency != company_currency else {}
+
+                    move_vals = {
+                        'move_type': 'entry',
+                        'journal_id': journal.id,
+                        'date': accounting_date,
+                        'ref': f'Wallet top-up via Salesperson {salesperson.display_name}',
+                        'is_from_api': True,
+                        'note_from_api': note_from_api or False,
+                        'api_payload': api_payload or False,
+                        'line_ids': [
+                            (0, 0, {
+                                'name': ref or 'Wallet top-up via Salesperson',
+                                'partner_id': salesperson.id,
+                                'account_id': salesperson.property_account_receivable_id.id,
+                                'debit': amount_company_currency,
+                                'credit': 0.0,
+                                **({'currency_id': currency.id, 'amount_currency': amount} if currency != company_currency else {}),
+                            }),
+                            (0, 0, {
+                                'name': ref or 'Wallet top-up via Salesperson',
+                                'partner_id': partner.id,
+                                'account_id': wallet_receivable.id,
+                                'debit': 0.0,
+                                'credit': amount_company_currency,
+                                **({'currency_id': currency.id, 'amount_currency': -amount} if currency != company_currency else {}),
+                            }),
+                        ],
+                    }
+
+                    move = env['account.move'].sudo().with_company(company_id).create(move_vals)
+                    if should_post:
+                        move.action_post()
+                    journal_transaction_id = transaction_id
+                else:
+                    move, error = wallet._create_payment(
+                        partner,
+                        amount,
+                        payment_method_type,
+                        ref,
+                        should_post=should_post,
+                        transaction_id=transaction_id,
+                        image_url=image_url,
+                        bank=bank,
+                        account_number=account_number,
+                        accounting_date=accounting_date,
+                        note_from_api=note_from_api,
+                        api_payload=api_payload,
+                        company_id=company_id,
+                        currency_id=currency.id,
+                    )
+                    if move:
+                        journal_transaction_id = move.caram_transaction_id
+                    if error:
+                        return request.make_json_response({"error": str(error)}, status=500)
+                    if not move:
+                        return request.make_json_response({"error": "Failed to create payment"}, status=500)
+
+            # -------------------- Convert amount to company currency for points ledger --------------------
+                if currency != company_currency:
+                    amount_company_currency = currency._convert(
+                        amount, company_currency, company, doc_date
+                    )
+                else:
+                    amount_company_currency = amount
+
+            # -------------------- Create Wallet Transaction --------------------
+                transaction_vals = {
+                "card_id": wallet.id,
+                "description": note or "",
+                "issued": amount_company_currency,
+                "deposit_method": transaction_type,
+                "reference": reference or "",
+                "bank": bank or "",
+                "account_number": account_number or "",
+                "status": state,
+                
+            }
+            
+                if move:
+                    transaction_vals.update({
+                    "order_model": move._name,
+                    "order_id": move.id,
+                })
+                elif move_credit:
+                    transaction_vals.update({
+                    "order_model": "account.move",
+                    "order_id": move_credit.id,
+                })
+
+                else:
+                    transaction_vals.update({
+                    "order_model": "res.partner",
+                    "order_id": partner.id,
+                })
+
+                transaction = env['loyalty.history'].sudo().create(transaction_vals)
+            
+
+                # Calculate balance: sum of issued minus sum of used for posted records
+                posted_history = env['loyalty.history'].sudo().search([
+                ('card_id', '=', wallet.id), 
+                ('status', '=', 'posted')
+            ])
+                total_issued = sum(posted_history.mapped('issued') or [0.0])
+                total_used = sum(posted_history.mapped('used') or [0.0])
+                total_balance = total_issued - total_used
+
+            # -------------------- Update Card Points --------------------
+                wallet_balance = total_balance
+                wallet.sudo().write({"points": wallet_balance})
+
+            # -------------------- Response --------------------
+                data = {
+                "transaction_id": transaction.id,
+                "journal_entry_id": move.id if move else move_credit.id,
+                "journal_transaction_id": journal_transaction_id,
+                "partner_id": partner.id,
+                "wallet_id": wallet.id,
+                "amount": amount,
+                "currency": currency.name,
+                "amount_company_currency": amount_company_currency,
+                "deposit_method": transaction_type,
+                "state": state,
+                "balance_after": total_balance,
+            }
+
+                return request.make_json_response({"status": "success", "message": "Wallet transaction created successfully", "data": data}, status=201)
+
+        except Exception as e:
+            return request.make_json_response({"error": f"Failed to create wallet transaction: {str(e)}"}, status=500)
+        
+    #@http.route("/api/add_wallet_transaction", type="http", auth="none", methods=["POST"], csrf=False)
+    def old_add_wallet_transaction(self, **kw):
         try:
             payload = json.loads(request.httprequest.data.decode("utf-8"))
             user = self._authenticate()

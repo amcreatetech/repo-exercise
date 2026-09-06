@@ -118,7 +118,7 @@ class LoyaltyCard(models.Model):
             "quantity": 1,
             "price_unit": amount,
         }
-
+    #feda edit - add currency to create_points_credit_note method to support multi currency
     def create_points_credit_note(
         self,
         env,
@@ -128,6 +128,7 @@ class LoyaltyCard(models.Model):
         accounting_date=None,
         note_from_api=False,
         api_payload=False,
+        currency_id=None,
     ):
         """Create & post a customer credit note to represent the welcome coupon."""
         points_product = env['product.product'].sudo().with_company(company_id).search(
@@ -144,17 +145,20 @@ class LoyaltyCard(models.Model):
         
         if not expense_account:
             expense_account = env['account.account'].sudo().with_company(company_id).search(
-                [('company_id', '=', company_id), ('account_type', 'in', ('expense'))],
+                [('account_type', 'in', ('expense'))],
                 limit=1,
             )
         if not expense_account:
             return False
 
+        company = env['res.company'].sudo().browse(company_id)
+        currency = currency_id or company.currency_id.id
+
         doc_date = accounting_date or fields.Date.context_today(self)
         credit_note = env['account.move'].sudo().with_company(company_id).create({
             'partner_id': partner.id,
-            
             'move_type': 'out_refund',
+            'currency_id': currency,
             'invoice_date': doc_date,
             'date': doc_date,
             'invoice_date_due': doc_date,
@@ -173,6 +177,7 @@ class LoyaltyCard(models.Model):
         # Post the credit note to make it effective
         credit_note.action_post()
         return credit_note
+
 
     #feda edit - add currency to _create_payment method to support multi currency
     def _create_payment(
