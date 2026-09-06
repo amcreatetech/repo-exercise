@@ -286,7 +286,7 @@ class CaramRide(models.Model):
     # ---------------------------
     # Main payment logic
     # ---------------------------
-    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0, company_id=None):
+    def action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0, company_id=None, currency_id=None):
         self.ensure_one()
         self = self.with_company(self.company_id.id).with_context(
             allowed_company_ids=[self.company_id.id],
@@ -306,6 +306,9 @@ class CaramRide(models.Model):
         payment_mode = payment_mode
         fare_amount = float(fare_amount or 0.0)
         penalties = penalties or []
+
+        company = self.env["res.company"].sudo().browse(company_id) if company_id else self.company_id
+        currency = self.env["res.currency"].sudo().browse(currency_id) if currency_id else company.currency_id
 
         # Penalties can be for driver / rider / both
         driver_penalty_amount = 0.0
@@ -387,6 +390,7 @@ class CaramRide(models.Model):
                 accounting_date=doc_date,
                 note_from_api=api_note,
                 api_payload=stored_api_payload,
+                currency_id=currency.id,
             )
             _logger.info(f"Cash exceed case: cash_paid={cash_paid}, fare_amount={self.fare_amount}, extra={extra}. Wallet clearing done.")
             _logger.info(f"caram_wallet_clearing responce {resp}")
@@ -552,6 +556,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    currency_id=currency.id,
                 )
                 driver_card.caram_addwallet(
                     -due_amount,
@@ -562,6 +567,7 @@ class CaramRide(models.Model):
                     accounting_date=doc_date,
                     note_from_api=api_note,
                     api_payload=stored_api_payload,
+                    currency_id=currency.id,
                 )
               
             if commission_amount >= 0 or driver_penalty_amount>=0:
@@ -626,6 +632,7 @@ class CaramRide(models.Model):
             "status": "success",
             "ride_id": self.ride_id,
             "case": case,
+            "currency": currency.name,
             "wallet_movements": {
                 "rider_wallet_delta": rider_wallet_delta,
                 "driver_wallet_delta": driver_wallet_delta,

@@ -2124,6 +2124,7 @@ class ContactRegistrationController(http.Controller):
             expense_amount = payload.get("expense_amount", 0.0)
             create_entries = payload.get("create_entries", True)
             api_payload = payload
+            currency_id_payload = payload.get("currency_id")
 
             try:
                 company_id = int(payload.get("company_id",1))
@@ -2131,6 +2132,14 @@ class ContactRegistrationController(http.Controller):
                 return request.make_json_response({"error": "Invalid company_id"}, status=400)
 
             env = self._get_env(user, company_id)
+
+            # -------------------- Resolve currency (applies to fare_amount / cash_paid only) --------------------
+            company = env["res.company"].sudo().browse(company_id)
+            currency = company.currency_id
+            if currency_id_payload:
+                currency = env["res.currency"].sudo().browse(int(currency_id_payload))
+                if not currency.exists():
+                    return request.make_json_response({"error": "Invalid currency_id"}, status=400)
 
             # NOTE: removed the old hard error for
             # `driver_type == 'external' and not expense_amount` -
@@ -2179,6 +2188,7 @@ class ContactRegistrationController(http.Controller):
                         "commission_amount": commission_amount,
                         "wallet_paid": wallet_paid,
                         "cash_paid": cash_paid,
+                        "currency_id": currency.id,
                         "paid_at": accounting_date or fields.Datetime.now(),
                         "expense_amount": expense_amount,
                         "driver_type": driver_type,
@@ -2234,6 +2244,7 @@ class ContactRegistrationController(http.Controller):
                     driver_type=ride.driver_type,
                     expense_amount=ride.expense_amount,
                     company_id=ride.company_id.id,
+                    currency_id=ride.currency_id.id if ride.currency_id else currency.id,
                 )
 
                 ride.sudo().write({"has_wallet_entries": True,"state": "paid"})
