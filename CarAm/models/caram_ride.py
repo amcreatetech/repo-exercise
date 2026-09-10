@@ -644,3 +644,362 @@ class CaramRide(models.Model):
             "penalties_applied": bool(driver_penalty_amount or rider_penalty_amount),
         }
         return response
+
+    def old_action_pay_ride(self, *,fare_amount, wallet_paid, cash_paid, commission_amount, penalties, payment_mode, accounting_date=None, note_from_api=False, api_payload=False, is_airport_trip=False, driver_type=None, expense_amount=0.0, company_id=None, currency_id=None):
+        self.ensure_one()
+        self = self.with_company(self.company_id.id).with_context(
+            allowed_company_ids=[self.company_id.id],
+            caram_is_airport_trip=is_airport_trip,
+        )
+        
+        if self.state == "paid":
+            raise UserError(_("Ride already paid."))
+
+        doc_date = accounting_date or fields.Date.context_today(self)
+        api_note = note_from_api or False
+        stored_api_payload = api_payload or False
+
+        wallet_paid = float(wallet_paid or 0.0)
+        cash_paid = float(cash_paid or 0.0)
+        commission_amount = float(commission_amount or 0.0)
+        payment_mode = payment_mode
+        fare_amount = float(fare_amount or 0.0)
+        penalties = penalties or []
+
+        company = self.env["res.company"].sudo().browse(company_id) if company_id else self.company_id
+        currency = self.env["res.currency"].sudo().browse(currency_id) if currency_id else company.currency_id
+
+        # Penalties can be for driver / rider / both
+        driver_penalty_amount = 0.0
+        rider_penalty_amount = 0.0
+        for p in penalties:
+            if not isinstance(p, dict):
+                continue
+            party = (p.get("party") or "").strip().lower()
+            amount = float(p.get("amount") or 0.0)
+            if amount <= 0:
+                continue
+            if party == "driver":
+                driver_penalty_amount += amount
+            elif party == "rider":
+                rider_penalty_amount += amount
+
+        # Response fields (API contract)
+        case_map = {
+            "cash_only": "CASH_ONLY",
+            "cash_exceed": "CASH_EXCEED",
+            "wallet_paid": "WALLET_ONLY",
+            "wallet_cash": "WALLET_PLUS_CASH",
+        }
+        case = case_map.get(payment_mode, payment_mode or "")
+
+        # Wallet movements are reported as net deltas (what should happen economically)
+        rider_wallet_delta = 0.0
+        driver_wallet_delta = 0.0
+        
+        # Cards (wallets)
+        rider_card = self._get_wallet_card(self.rider_id)
+        if not rider_card:
+            raise UserError(_("Wallet not found for rider."))
+
+        driver_card = self._get_wallet_card(self.driver_id)
+        if not driver_card:
+            raise UserError(_("Wallet not found for driver."))
+
+        # Add fine to rider and driver if exist  
+        if payment_mode == "cash_only":
+            driver_card.caram_withdraw(
+                commission_amount + driver_penalty_amount,
+                commission_amount,
+                fine_amount=driver_penalty_amount,
+                description=f"Ride commission {self.ride_id} (cash)",
+                status="posted",
+                driver=self.driver_id,
+                should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                company_id=company_id,
+            )
+            if rider_penalty_amount > 0:
+                rider_card.caram_withdraw(
+                    rider_penalty_amount,
+                    commission_amount= 0.0,
+                    fine_amount=rider_penalty_amount,
+                    description=f"Ride penalty {self.ride_id} (rider)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+
+            rider_wallet_delta = 0.0
+            driver_wallet_delta = -commission_amount
+
+        #feda edit - in case of cash exceed, the extra amount is deposited to rider wallet and commission + fine is withdrawn from driver wallet
+        elif payment_mode == "cash_exceed": 
+            extra = cash_paid - self.fare_amount
+            resp = rider_card.caram_wallet_clearing(
+                extra,
+                rider=self.rider_id,
+                driver=self.driver_id,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                currency_id=currency.id,
+            )
+            _logger.info(f"Cash exceed case: cash_paid={cash_paid}, fare_amount={self.fare_amount}, extra={extra}. Wallet clearing done.")
+            _logger.info(f"caram_wallet_clearing responce {resp}")
+            driver_card.caram_withdraw(
+                commission_amount + driver_penalty_amount,
+                commission_amount,
+                fine_amount=driver_penalty_amount,
+                description=f"Ride commission {self.driver_id} (cash)",
+                status="posted",
+                driver=self.driver_id,
+                should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                company_id=company_id,
+            )
+            if rider_penalty_amount > 0:
+                rider_card.caram_withdraw(
+                    rider_penalty_amount,
+                    commission_amount= 0.0,
+                    fine_amount=rider_penalty_amount,
+                    description=f"Ride penalty {self.ride_id} (rider)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+
+            # cash_paid > fare_amount => diff is deposited to rider wallet
+            rider_wallet_delta = float(cash_paid - self.fare_amount)
+            driver_wallet_delta = -commission_amount
+
+        elif payment_mode == "wallet_paid":
+            history1 = rider_card.caram_withdraw(
+                wallet_paid,
+                rider_penalty_amount,
+                fine_amount=driver_penalty_amount,
+                description=f"Ride wallet amount {self.ride_id} (wallet)",
+                status="posted",
+                driver=self.rider_id,
+                should_create_invoice=False,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                company_id=company_id,
+            )
+
+            history2 = driver_card.caram_addwallet(
+                wallet_paid,
+                description=f"Driver wallet amount {self.driver_id} (wallet)",
+                status="posted",
+                driver=self.driver_id,
+                should_create_payment=False,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+            )
+            # Create Journal Entery
+            # to transfer from rider wallet to driver wallet
+            journal_entry = self._create_journal_entry(
+                self.driver_id,
+                self.rider_id,
+                wallet_paid,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                company_id=company_id,
+            )
+            history1.sudo().write({
+                "order_model": "account.move",
+                "order_id": journal_entry.id,
+            })
+            history2.sudo().write({
+                "order_model": "account.move",
+                "order_id": journal_entry.id,
+            })
+            driver_card.caram_withdraw(
+                commission_amount + driver_penalty_amount,
+                commission_amount,
+                fine_amount=driver_penalty_amount,
+                description=f"Ride commission {self.ride_id} (cash)",
+                status="posted",
+                driver=self.driver_id,
+                should_create_invoice=True,
+                accounting_date=doc_date,
+                note_from_api=api_note,
+                api_payload=stored_api_payload,
+                company_id=company_id,
+            )
+            if rider_penalty_amount > 0:
+                rider_card.caram_withdraw(
+                    rider_penalty_amount,
+                    commission_amount= 0.0,
+                    fine_amount=rider_penalty_amount,
+                    description=f"Ride penalty {self.ride_id} (rider)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+
+            rider_wallet_delta = -self.fare_amount
+            driver_wallet_delta = float(self.fare_amount - commission_amount)
+
+        elif payment_mode == "wallet_cash":
+            if wallet_paid > 0:
+                journal_entry = self._create_journal_entry(
+                    self.driver_id,
+                    self.rider_id,
+                    wallet_paid,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+                history1 = rider_card.caram_withdraw(
+                    wallet_paid,
+                    rider_penalty_amount,
+                    fine_amount=driver_penalty_amount,
+                    description=f"Ride wallet amount {self.ride_id} (wallet part)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_invoice=False,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+                history2 = driver_card.caram_addwallet(
+                    wallet_paid,
+                    description=f"Driver wallet amount {self.ride_id} (wallet part)",
+                    status="posted",
+                    driver=self.driver_id,
+                    should_create_payment=False,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                )
+                history1.sudo().write({
+                    "order_model": "account.move",
+                    "order_id": journal_entry.id,
+                })
+                history2.sudo().write({
+                    "order_model": "account.move",
+                    "order_id": journal_entry.id,
+                })
+            diff = fare_amount - wallet_paid
+         
+            if cash_paid > diff:
+                due_amount = cash_paid - diff
+                rider_card.caram_addwallet(
+                    due_amount,
+                    description=f"Ride wallet amount {self.ride_id} (cash part)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_payment=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    currency_id=currency.id,
+                )
+                driver_card.caram_addwallet(
+                    -due_amount,
+                    description=f"Ride wallet amount {self.ride_id} (cash part)",
+                    status="posted",
+                    driver=self.driver_id,
+                    should_create_payment=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    currency_id=currency.id,
+                )
+              
+            if commission_amount >= 0 or driver_penalty_amount>=0:
+                driver_card.caram_withdraw(
+                    commission_amount + driver_penalty_amount,
+                    commission_amount,
+                    fine_amount=driver_penalty_amount,
+                    description=f"Ride commission {self.ride_id} (wallet+cash)",
+                    status="posted",
+                    driver=self.driver_id,
+                    should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+            if rider_penalty_amount > 0:
+                rider_card.caram_withdraw(
+                    rider_penalty_amount,
+                    commission_amount= 0.0,
+                    fine_amount=rider_penalty_amount,
+                    description=f"Ride penalty {self.ride_id} (rider)",
+                    status="posted",
+                    driver=self.rider_id,
+                    should_create_invoice=True,
+                    accounting_date=doc_date,
+                    note_from_api=api_note,
+                    api_payload=stored_api_payload,
+                    company_id=company_id,
+                )
+
+            rider_wallet_delta = -wallet_paid
+            driver_wallet_delta = float(wallet_paid - commission_amount)
+
+        else:
+            raise UserError(_("Invalid payment_mode"))
+
+        if driver_type == 'external':
+            journal_entry = self._create_expense_bill(
+                self.driver_id,
+                float(expense_amount or 0.0),
+                company_id=self.company_id.id,
+                accounting_date=doc_date,
+            )
+            card = (self.env["loyalty.card"].sudo().search( [("partner_id", "=", self.driver_id.id)],
+                    limit=1,))
+            if not card:
+                raise UserError(_("Wallet not found for driver."))
+            history_vals = {
+                "card_id": card.id,
+                "description": f"Ride expense amount {self.ride_id} (external driver)",
+                "issued": float(expense_amount or 0.0),
+                "used": 0.0,
+                "status": "posted",
+                "order_model": "account.move",
+                "order_id": journal_entry.id,
+                "transaction_date": accounting_date or fields.Datetime.now(),
+            }
+            tx = self.env["loyalty.history"].sudo().create(history_vals)
+
+        response = {
+            "status": "success",
+            "ride_id": self.ride_id,
+            "case": case,
+            "currency": currency.name,
+            "wallet_movements": {
+                "rider_wallet_delta": rider_wallet_delta,
+                "driver_wallet_delta": driver_wallet_delta,
+            },
+            "commission": {
+                "amount": commission_amount,
+                "invoiced": bool(commission_amount and commission_amount > 0),
+            },
+            "penalties_applied": bool(driver_penalty_amount or rider_penalty_amount),
+        }
+        return response

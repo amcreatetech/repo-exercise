@@ -453,13 +453,14 @@ class LoyaltyCard(models.Model):
         driver=None,
         accounting_date=None,
         note_from_api=False,
-        api_payload=False,):
+        api_payload=False,
+        currency_id=None,):
         try:
             self.ensure_one()
             company_id = self.company_id.id
             company = self.env["res.company"].sudo().browse(company_id)
-           
-            
+            company_currency = company.currency_id
+            currency = self.env["res.currency"].sudo().browse(currency_id) if currency_id else company_currency
 
             # Wallet accounts from company configuration
             rider_wallet_account = rider.property_account_receivable_id
@@ -478,6 +479,18 @@ class LoyaltyCard(models.Model):
             
 
             base_amount = abs(amount)
+
+            # Manual journal entries need debit/credit in company currency.
+            # If a foreign currency was requested, convert for debit/credit and
+            # keep the original amount via amount_currency + currency_id on the lines.
+            doc_date = accounting_date or fields.Date.context_today(self)
+            if currency != company_currency:
+                base_amount_company_currency = currency._convert(
+                    base_amount, company_currency, company, doc_date
+                )
+            else:
+                base_amount_company_currency = base_amount
+
             if amount > 0:
                 # Rider -> Driver
                 debit_partner = rider
@@ -510,8 +523,9 @@ class LoyaltyCard(models.Model):
                             "name": ref,
                             "partner_id": debit_partner.id,
                             "account_id": debit_account.id,
-                            "debit": base_amount,
+                            "debit": base_amount_company_currency,
                             "credit": 0.0,
+                            **({"currency_id": currency.id, "amount_currency": base_amount} if currency != company_currency else {}),
                         },
                     ),
                     (
@@ -522,7 +536,8 @@ class LoyaltyCard(models.Model):
                             "partner_id": credit_partner.id,
                             "account_id": credit_account.id,
                             "debit": 0.0,
-                            "credit": base_amount,
+                            "credit": base_amount_company_currency,
+                            **({"currency_id": currency.id, "amount_currency": -base_amount} if currency != company_currency else {}),
                         },
                     ),
                 ],
@@ -568,6 +583,7 @@ class LoyaltyCard(models.Model):
                     order_model="account.move",
                     order_id=move.id,
                     company_id=company_id,
+                    currency_id=currency.id,
                 )
                 driver_card.caram_addwallet(
                     base_amount,
@@ -577,6 +593,7 @@ class LoyaltyCard(models.Model):
                     should_create_payment=False,
                     order_model="account.move",
                     order_id=move.id,
+                    currency_id=currency.id,
                 )
             else:
                 # driver.wallet -= amount_abs, rider.wallet += amount_abs
@@ -591,6 +608,7 @@ class LoyaltyCard(models.Model):
                     order_model="account.move",
                     order_id=move.id,
                     company_id=company_id,
+                    currency_id=currency.id,
                 )
                 rider_card.caram_addwallet(
                     base_amount,
@@ -600,6 +618,7 @@ class LoyaltyCard(models.Model):
                     should_create_payment=False,
                     order_model="account.move",
                     order_id=move.id,
+                    currency_id=currency.id,
                 )
 
             response = {
@@ -608,6 +627,7 @@ class LoyaltyCard(models.Model):
                 "rider_id": rider.id,
                 "driver_id": driver.id,
                 "amount": amount,
+                "currency": currency.name,
                 "direction": direction,
                 "message": "Wallet clearing completed successfully",
             }
@@ -615,7 +635,7 @@ class LoyaltyCard(models.Model):
 
         except Exception as e:
             return str(e)
-
+        
     def caram_addwallet(
         self,
         amount,
@@ -630,11 +650,28 @@ class LoyaltyCard(models.Model):
         note_from_api=False,
         api_payload=False,
         company_id=None,
+        currency_id=None,
     ):
         self.ensure_one()
         amount = float(amount or 0.0)
         #if amount <= 0:
             #raise UserError(_("amount must be greater than 0"))
+
+        company = self.env["res.company"].sudo().browse(company_id) if company_id else self.env.company
+        company_currency = company.currency_id
+        currency = self.env["res.currency"].sudo().browse(currency_id) if currency_id else company_currency
+
+        doc_date = accounting_date or fields.Date.context_today(self)
+
+        # Convert to company currency for the points ledger; the payment itself
+        # (created below) stays in `currency`.
+        if currency != company_currency:
+            amount_company_currency = currency._convert(
+                amount, company_currency, company, doc_date
+            )
+        else:
+            amount_company_currency = amount
+
         if should_create_payment:
             payment, error = self._create_payment(
                 driver,
@@ -650,6 +687,7 @@ class LoyaltyCard(models.Model):
                 note_from_api=note_from_api,
                 api_payload=api_payload,
                 company_id=company_id,
+                currency_id=currency.id,
             )
             if error:
                 raise UserError(error)
@@ -659,7 +697,7 @@ class LoyaltyCard(models.Model):
         transaction_vals = {
             "card_id": self.id,
             "description": description or "",
-            "issued": amount,
+            "issued": amount_company_currency,
             "deposit_method": "direct",
             "reference": "",
             "bank": "",
