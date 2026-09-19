@@ -1653,7 +1653,7 @@ class ContactRegistrationController(http.Controller):
                 journal_entry.action_post()
                 move = journal_entry
 
-            elif comp_type in ("bonus", "driver_coupon", "rider_coupon","fees"):
+            elif comp_type in ("bonus", "driver_coupon", "rider_coupon","fees","discount"):
                 move = self.create_driver_coupon_credit_note(
                     env,
                     company_id,
