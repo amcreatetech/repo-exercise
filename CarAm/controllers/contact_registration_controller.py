@@ -1602,24 +1602,23 @@ class ContactRegistrationController(http.Controller):
             is_return = amount < 0
             abs_amount = abs(amount)
             description = f"Wallet compensation ({comp_type}{' - return' if is_return else ''}) {note}"
-
+            journal = env["account.journal"].sudo().with_company(company_id).search(
+                                [("type", "=", "general"), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
+                                limit=1,
+                            )
+            if not journal:
+                raise UserError(_("No journal found to post CarAm wallet transfer entries."))
+            
+            wallet_receivable = partner.with_company(company_id).property_account_receivable_id
+            if not wallet_receivable:
+                return request.make_json_response(
+                                    {"error": "Wallet partner has no receivable account configured"},
+                                    status=500,
+                                )
             # -------------------- Accounting entry --------------------
             if is_return:
                 # Negative amount on ANY type -> reversing manual journal entry,
                 # using the product/expense account resolved for that type above.
-                journal = env["account.journal"].sudo().with_company(company_id).search(
-                    [("type", "=", "general"), '|', ('company_id', '=', company_id), ('company_id', 'parent_of', company_id)],
-                    limit=1,
-                )
-                if not journal:
-                    raise UserError(_("No journal found to post CarAm wallet transfer entries."))
-
-                wallet_receivable = partner.with_company(company_id).property_account_receivable_id
-                if not wallet_receivable:
-                    return request.make_json_response(
-                        {"error": "Wallet partner has no receivable account configured"},
-                        status=500,
-                    )
 
                 ref = f"Return ({comp_type}) {partner.name} wallet transfer"
                 move_vals = {
@@ -1653,45 +1652,43 @@ class ContactRegistrationController(http.Controller):
                 journal_entry.action_post()
                 move = journal_entry
 
-            elif comp_type in ("bonus", "driver_coupon", "rider_coupon","fees","discount"):
-                move = self.create_driver_coupon_credit_note(
-                    env,
-                    company_id,
-                    partner,
-                    amount,
-                    description,
-                    product=product,
-                    accounting_date=accounting_date,
-                    note_from_api=note_from_api,
-                    api_payload=api_payload,
-                )
-                if not move:
-                    return request.make_json_response(
-                        {"status": 500, "message": f"Failed to create {comp_type} credit note"},
-                        status=500,
-                    )
-
-            #else:
-                # discount / fees -> invoice entry using _create_invoice_from_lines
-                #invoice_line_vals = {
-                    #"product_id": product.id,
-                    #"account_id": expense_account.id,
-                    #"name": description,
-                    #"quantity": 1,
-                    #"price_unit": amount,
-                #}
-                #move = card._create_invoice_from_lines(
-                    #partner,
-                    #[invoice_line_vals],
-                    #accounting_date=accounting_date,
-                    #note_from_api=note_from_api,
-                    #api_payload=api_payload,
-                    #company_id= company_id,
-                #)
-
+            else:
+            
+                ref = f"Compensation ({comp_type}) {partner.name} wallet transfer"
+                move_vals = {
+                                                    "move_type": "entry",
+                                                    "journal_id": journal.id,
+                                                    "date": accounting_date,
+                                                    "ref": ref,
+                                                    "is_from_api": True,
+                                                    "note_from_api": note_from_api or False,
+                                                    "api_payload": api_payload or False,
+                                                    "line_ids": [
+                                                        (0, 0, {
+                                                            "name": ref,
+                                                            "partner_id": partner.id,
+                                                            "account_id": wallet_receivable.id,
+                                                            "debit": 0.0,
+                                                            "credit": abs_amount,
+                                                        }),
+                                                        (0, 0, {
+                                                            "name": ref,
+                                                            "partner_id": partner.id,
+                                                            "product_id": product.id,
+                                                            "account_id": expense_account.id,
+                                                            "debit": abs_amount,
+                                                            "credit": 0.0,
+                                                        }),
+                                                    ],
+                                                }
+                                
+                journal_entry = env["account.move"].sudo().with_company(company_id).create(move_vals)
+                journal_entry.action_post()
+                move = journal_entry
+                
             # -------------------- Wallet & loyalty history --------------------
             balance_before = card.caram_get_posted_balance()
-            delta = amount if comp_type in ("bonus", "driver_coupon", "rider_coupon","fees") else -amount
+            delta = amount
 
             tx_vals = {
                 "card_id": card.id,
