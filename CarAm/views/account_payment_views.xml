@@ -18,6 +18,7 @@
                             <group string="Transaction">
                                 <field name="caram_transaction_id"/>
                                 <field name="caram_status_synced"/>
+                                <field name="cash_collection"/>
                             </group>
                             <group string="Bank Details">
                                 <field name="caram_bank" invisible="not caram_bank"/>
