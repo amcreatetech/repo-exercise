@@ -11,6 +11,7 @@ class AccountMove(models.Model):
         help="Indicates if this invoice, credit note, or journal entry was created from API",
         readonly=True,
     )
+    
     note_from_api = fields.Text(
         string="Note from API",
         copy=False,
