@@ -22,7 +22,6 @@ class CaramCompensationProductConfig(models.Model):
             ("rider_coupon", "Rider Coupon"),
             ("promo_coupon", "Promo Coupon"),
             ("fees", "Fees"),
-            ("discount", "Discount"),
             ("sales_discount", "Sales Discount"),
             ("expense", "Expense"),
             ("fine", "Fine"),

@@ -1100,7 +1100,7 @@ class ContactRegistrationController(http.Controller):
                     {"status": 400, "message": "odoo_partner_id is required"}, status=400
                 )
 
-            allowed_types = ["bonus", "driver_coupon", "discount", "fees"]
+            allowed_types = ["bonus", "driver_coupon", "fees"]
             if comp_type not in allowed_types:
                 return request.make_json_response(
                     {"status": 400, "message": f"Invalid type (must be one of {allowed_types})"},
