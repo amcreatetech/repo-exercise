@@ -182,7 +182,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ride_id\": \"RIDE-0001\",\n  \"fare_amount\": 45.0,\n  \"wallet_paid\": 20.0,\n  \"cash_paid\": 25.0,\n  \"commission_amount\": 0.0,\n  \"penalties\": [],\n  \"rider_id\": 111,\n  \"driver_id\": 222,\n  \"payment_mode\": \"wallet_cash\"\n}"
+              "raw": "{\n  \"ride_id\": \"RIDE-0001\",\n  \"fare_amount\": 45.0,\n  \"wallet_paid\": 20.0,\n  \"cash_paid\": 25.0,\n  \"commission_amount\": 0.0,\n  \"rider_id\": 111,\n  \"driver_id\": 222,\n  \"payment_mode\": \"wallet_cash\"\n}"
             },
             "url": {
               "raw": "{{odoo_base_url}}/api/ride/pay",

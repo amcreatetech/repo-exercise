@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
+
     sub_id = fields.Char(
         string='Platform ID',
         help='External platform identifier (Sub ID)',

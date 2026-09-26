@@ -10,6 +10,9 @@
                     <page string="CarAm" name="caram_move">
                         <field name="note_from_api" colspan="2" nolabel="1" placeholder="No API note"/>
                         <field name="api_payload" colspan="2" widget="text" nolabel="1" placeholder="No API payload"/>
+                        <field name="is_from_api" colspan="2" nolabel="1"/>
+                        <field name="ride_id" colspan="2" nolabel="1"/>
+                        <field name="driver_id" colspan="2" nolabel="1"/>
                     </page>
                 </notebook>
             </xpath>

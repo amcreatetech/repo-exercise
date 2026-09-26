@@ -34,6 +34,13 @@ class AccountPayment(models.Model):
         readonly=True,
         copy=False,
     )
+    cash_collection = fields.Boolean(
+                string="Cash Collection",
+                default=False,
+                copy=False,
+                help="Indicates if this entry is cash collection",
+                readonly=True,
+            )
     note_from_api = fields.Text(
         string="Note from API",
         copy=False,
@@ -46,13 +53,6 @@ class AccountPayment(models.Model):
         readonly=True,
         help="Full JSON request body received from the API when this payment was created.",
     )
-    cash_collection = fields.Boolean(
-                string="Cash Collection",
-                default=False,
-                copy=False,
-                help="Indicates if this entry is cash collection",
-                readonly=True,
-            )
 
     def _get_caram_api_url(self):
         """Get CarAm API base URL from settings"""
@@ -167,7 +167,7 @@ class AccountPayment(models.Model):
             'odoo_partner_id': self.partner_id.id,
             'type': ttype, #credit , debit
             'amount': self.amount,
-            'currency': self.currency_id.id,
+            'currency_id': self.currency_id.id,
             'date': self.date.strftime('%Y-%m-%d'),
             'note': "Cash Collection Request from Odoo"+ self.memo if self.memo else "",        
         }

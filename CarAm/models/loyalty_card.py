@@ -77,7 +77,7 @@ class LoyaltyCard(models.Model):
             ) % (comp_type, company_id))
 
         commission_product = config.product_id.with_company(company_id)        
-        #commission_product = self.company_id.caram_commission_product_id
+        
         if not commission_product:
             raise UserError(_("Please set commission product in the settings !"))
         return {
@@ -109,7 +109,7 @@ class LoyaltyCard(models.Model):
             ) % (comp_type, company_id))
 
         fine_product = config.product_id.with_company(company_id)         
-        #fine_product = self.company_id.caram_fine_product_id
+    
         if not fine_product:
             raise UserError(_("Please set fine product in the settings !"))
         return {
@@ -270,9 +270,7 @@ class LoyaltyCard(models.Model):
             if not journal:
                 raise UserError(_("Airport journal is not configured for this company. _get_general_journal"))
             return journal.id
-        journal = self.company_id.caram_wallet_journal_id
-        if journal:
-            return journal.id
+    
         journal = self.env["account.journal"].sudo().with_company(company_id).search(
             [("type", "=", "sale"), 
             '|', ('company_id', '=', company_id), 
@@ -469,7 +467,7 @@ class LoyaltyCard(models.Model):
                 raise UserError(_("Wallet accounts are not configured for rider or driver."))
 
             
-            journal = company.caram_clearing_journal_id or self.env[
+            journal = self.env[
                     "account.journal"
                 ].sudo().search(
                     [("type", "=", "general"), 
