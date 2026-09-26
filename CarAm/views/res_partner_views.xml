@@ -22,7 +22,9 @@
                 <field name="contact_type"/>
                 <field name="driver_type"/>
                 <field name="wallet_balance" readonly="1"/>
+                
             </field>
+           
         </field>
     </record>
 
@@ -71,4 +73,3 @@
     </record>
 
 </odoo>
-
