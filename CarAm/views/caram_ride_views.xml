@@ -54,9 +54,6 @@
                                     <field name="commission_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     <field name="expense_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                                     <field name="coupon_value" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    <field name="discount_percent"/>
-                                    <field name="discount_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    <field name="currency_id"/>
                                     <field name="coupon_description"/>
                                 </group>
                                 <group>

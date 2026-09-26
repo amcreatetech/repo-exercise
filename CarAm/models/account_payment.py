@@ -34,13 +34,6 @@ class AccountPayment(models.Model):
         readonly=True,
         copy=False,
     )
-    cash_collection = fields.Boolean(
-                string="Cash Collection",
-                default=False,
-                copy=False,
-                help="Indicates if this entry is cash collection",
-                readonly=True,
-            )
     note_from_api = fields.Text(
         string="Note from API",
         copy=False,
@@ -167,7 +160,6 @@ class AccountPayment(models.Model):
             'odoo_partner_id': self.partner_id.id,
             'type': ttype, #credit , debit
             'amount': self.amount,
-            'currency_id': self.currency_id.id,
             'date': self.date.strftime('%Y-%m-%d'),
             'note': "Cash Collection Request from Odoo"+ self.memo if self.memo else "",        
         }
@@ -184,7 +176,6 @@ class AccountPayment(models.Model):
                     message_type='notification',
                     subtype_xmlid='mail.mt_note',
                     )
-            self.write({'cash_collection': True})
             _logger.info(f"Cash collection request sent successfully for transaction {self.caram_transaction_id}")
         except requests.exceptions.HTTPError as e:
             self.message_post(

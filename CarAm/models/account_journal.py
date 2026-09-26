@@ -31,14 +31,7 @@ class AccountJournal(models.Model):
         default=False,
         help='Check this box if this journal is used for airport trips'
     )
-    
-    ride_code = fields.Selection([
-            ('cash_only', 'Cash Only'),
-            ('wallet_only', 'Wallet Only'),
-            ('cash_wallet', 'Cash + Wallet'),
-            ('RIDE-PENALTY', 'Ride Penalty'),
-        ], string="Ride Code", help="Used to categorize journals for ride transactions")
-    
+
     journal_sub_type = fields.Selection([
         ('bank', 'Bank'),
         ('fund', 'Fund'),

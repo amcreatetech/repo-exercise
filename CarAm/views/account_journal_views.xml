@@ -11,7 +11,6 @@
                 <field name="wallet_type_id"/>
                 <field name="expense_account_id"/>
                 <field name="is_airport_journal"/>
-                <field name="ride_code" widget="selection" options="{'no_create': True}"/>
             </field>
         </field>
     </record>
