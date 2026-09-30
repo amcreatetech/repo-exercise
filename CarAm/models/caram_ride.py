@@ -21,7 +21,7 @@ class CaramCompensationProductConfig(models.Model):
             ("driver_coupon", "Driver Coupon"),
             ("fees", "Fees"),
             ("commission", "Commission"),
-            ("sales_discount", "Sales Discount"),
+            
             ("expense", "Expense"),
             ("fine", "Fine"),
             ("fleet_operation", "Fleet Operation"),
