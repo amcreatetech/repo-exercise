@@ -29,6 +29,8 @@ class CaramCompensationProductConfig(models.Model):
             ("fleet_operation", "Fleet Operation"),
             ("operational_fine", "Operational Fine"),
             ("employees_fine", "Employees Fine"),
+            ("airport_coupon_discount", "Airport Coupon Discount"),
+            ("admin_sales_discount", "Admin Sales Discount"),
         ],
         required=True,
     )
