@@ -296,6 +296,7 @@ class ContactRegistrationController(http.Controller):
             city = payload.get("city")
             gender = payload.get("gender")
             contact_type = payload.get("contact_type")
+            driver_type = payload.get("driver_type")  # internal or external
             billing_type = payload.get("billing_type") # subscription,commission
 
             # ------------------------------------------------------------------
@@ -303,7 +304,9 @@ class ContactRegistrationController(http.Controller):
             # ------------------------------------------------------------------
             if not partner_id and not email and not mobile:
                 return request.make_json_response({"error": "Odoo_partner_id, email or mobile is required"}, status=400)
-
+            
+            if driver_type and driver_type not in ["internal", "external"]:
+                return request.make_json_response({"error": "Invalid driver_type"}, status=400)
             # ------------------------------------------------------------------
             # Search for the contact
             # ------------------------------------------------------------------
@@ -341,7 +344,12 @@ class ContactRegistrationController(http.Controller):
                 if contact_type not in ['driver', 'rider']:
                     return request.make_json_response({"error": "Invalid contact_type"}, status=400)
                 update_vals['contact_type'] = contact_type
-            
+
+            if driver_type:
+                if driver_type not in ['internal', 'external']:
+                    return request.make_json_response({"error": "Invalid driver_type"}, status=400)
+                update_vals['driver_type'] = driver_type
+
             if billing_type:
                 if billing_type not in ['commission', 'subscription']:
                     return request.make_json_response({"error": "Invalid billing_type"}, status=400)
@@ -1129,7 +1137,7 @@ class ContactRegistrationController(http.Controller):
                 )
 
             # -------------------- Resolve product per type --------------------
-            # driver_coupon / rider_coupon / fees each need their own product field
+            # driver_coupon / fees each need their own product field
             # on res.company. Rename these if your actual fields differ.
             # دور أول على إعداد خاص بالفرع نفسه بالضبط
             config = env["caram.compensation.product.config"].sudo().search(
@@ -1655,7 +1663,7 @@ class ContactRegistrationController(http.Controller):
             accounting_date = payload.get("date") or False
             note_from_api = payload.get("note_from_api") or False
             is_airport_trip = payload.get("is_airport_trip", False)
-            driver_type = payload.get("driver_type")
+            
             expense_amount = payload.get("expense_amount", 0.0)
             create_entries = payload.get("create_entries", True)
             api_payload = payload
@@ -1691,7 +1699,7 @@ class ContactRegistrationController(http.Controller):
                 return request.make_json_response({"error": "Rider not found"}, status=404)
             if not driver.exists():
                 return request.make_json_response({"error": "Driver not found"}, status=404)
-
+            driver_type = driver.driver_type or "external"  # default to external if not set
             # -------------------- Find or Create Ride --------------------
             ride = env["caram.ride"].sudo().search(
                 [("ride_id", "=", ride_id)], limit=1
@@ -1910,7 +1918,7 @@ class ContactRegistrationController(http.Controller):
             ride_id = payload.get("ride_id")
             rider_id = payload.get("rider_id")
             driver_id = payload.get("driver_id") or payload.get("driver")
-            driver_type = payload.get("driver_type")
+            
             fare_amount = float(payload.get("fare_amount", 0.0))
             commission_amount = payload.get("commission_amount", 0.0)
             accounting_date = payload.get("date") or False
@@ -1949,11 +1957,8 @@ class ContactRegistrationController(http.Controller):
                     {"error": "adjustment_type must be one of: %s" % ", ".join(valid_adjustment_types)},
                     status=400,
                 )
-
-            if driver_type not in ("internal", "external"):
-                return request.make_json_response(
-                    {"error": "driver_type must be 'internal' or 'external'"}, status=400
-                )
+            driver_type = driver.driver_type or "external"  # default to external if not set
+            
 
             if adjustment_type == "airport_coupon_discount":
                 if not (0 < discount_percent <= 100):
