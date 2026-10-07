@@ -449,7 +449,7 @@ class CaramRide(models.Model):
         })]
 
         if driver_type == "internal":
-            fleet_revenue_account = self._get_compensation_account(env, company_id, "fleet_operation")
+            fleet_revenue_account = self._get_compensation_income_account(env, company_id, "fleet_operation")
             line_vals.append((0, 0, {
                 "name": f"Company fleet operation revenue - ride {self.ride_id}",
                 "account_id": fleet_revenue_account.id,
@@ -464,7 +464,7 @@ class CaramRide(models.Model):
             if driver_payable_amount < 0:
                 raise UserError(_("Commission amount cannot exceed fare amount"))
 
-            commission_account = self._get_compensation_account(env, company_id, "commission")
+            commission_account = self._get_compensation_income_account(env, company_id, "commission")
             driver_payable_account = driver.with_company(company_id).property_account_payable_id
             if not driver_payable_account:
                 raise UserError(_("Driver has no payable account configured"))
@@ -525,7 +525,7 @@ class CaramRide(models.Model):
         if driver_payable_amount < 0:
             raise UserError(_("Commission amount cannot exceed fare amount"))
 
-        commission_account = self._get_compensation_account(env, company_id, "commission")
+        commission_account = self._get_compensation_income_account(env, company_id, "commission")
         driver_payable_account = driver.with_company(company_id).property_account_payable_id
         if not driver_payable_account:
             raise UserError(_("Driver has no payable account configured"))
@@ -585,7 +585,7 @@ class CaramRide(models.Model):
         if discount_amount > fare_amount:
             raise UserError(_("Discount amount cannot exceed fare amount"))
 
-        commission_account = self._get_compensation_account(env, company_id, "commission")
+        commission_account = self._get_compensation_income_account(env, company_id, "commission")
         driver_payable_account = driver.with_company(company_id).property_account_payable_id
         if not driver_payable_account:
             raise UserError(_("Driver has no payable account configured"))
@@ -657,7 +657,7 @@ class CaramRide(models.Model):
 
         if driver_type == "internal":
             # السائق موظف: كل المبلغ إيراد تشغيل أسطول، ما في عمولة ولا مستحقات
-            fleet_revenue_account = self._get_compensation_account(
+            fleet_revenue_account = self._get_compensation_income_account(
                 env, company_id, "fleet_operation"
             )
             line_vals.append((0, 0, {
@@ -674,7 +674,7 @@ class CaramRide(models.Model):
             if driver_payable_amount < 0:
                 raise UserError(_("Commission amount cannot exceed fare amount"))
 
-            commission_account = self._get_compensation_account(
+            commission_account = self._get_compensation_income_account(
                 env, company_id, "commission"
             )
             driver_payable_account = driver.with_company(company_id).property_account_payable_id
@@ -734,7 +734,7 @@ class CaramRide(models.Model):
             if driver_payable_amount < 0:
                 raise UserError(_("Commission amount cannot exceed fare amount"))
 
-            commission_account = self._get_compensation_account(env, company_id, "commission")
+            commission_account = self._get_compensation_income_account(env, company_id, "commission")
             driver_payable_account = driver.with_company(company_id).property_account_payable_id
             if not driver_payable_account:
                 raise UserError(_("Driver has no payable account configured"))
@@ -755,7 +755,7 @@ class CaramRide(models.Model):
                 }),
             ]
         elif driver_type == "internal":
-            fleet_revenue_account = self._get_compensation_account(env, company_id, "fleet_operation")
+            fleet_revenue_account = self._get_compensation_income_account(env, company_id, "fleet_operation")
             invoice_lines = [(0, 0, {
                 "name": f"Company fleet operation revenue - ride {self.ride_id}",
                 "account_id": fleet_revenue_account.id,
@@ -828,7 +828,7 @@ class CaramRide(models.Model):
         ]
 
         if driver_type == "internal":
-            fleet_revenue_account = self._get_compensation_account(env, company_id, "fleet_operation")
+            fleet_revenue_account = self._get_compensation_income_account(env, company_id, "fleet_operation")
             line_vals.append((0, 0, {
                 "name": f"Company fleet operation revenue - ride {self.ride_id}",
                 "account_id": fleet_revenue_account.id,
@@ -843,7 +843,7 @@ class CaramRide(models.Model):
             if driver_payable_amount < 0:
                 raise UserError(_("Commission amount cannot exceed fare amount"))
 
-            commission_account = self._get_compensation_account(env, company_id, "commission")
+            commission_account = self._get_compensation_income_account(env, company_id, "commission")
             driver_payable_account = driver.with_company(company_id).property_account_payable_id
             if not driver_payable_account:
                 raise UserError(_("Driver has no payable account configured"))
